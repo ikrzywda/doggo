@@ -5,12 +5,11 @@
 #define BUFFER_SIZE 50
 #define CR 0x0D
 
-#define READING 0x01
-#define WB1 0x02		/* Written Buffer 1*/
-#define WB2 0x03		/* Written Buffer 2 End */
+#define INPUT_1 0x02
+#define INPUT_2 0x01
 
-#define TRANS_TRUE 0x10
-#define TRANS_FALSE 0x11
+#define SPLIT '+'
+#define TERMINATE '|'
 
 void setup(){
 	Serial.begin(9600);
@@ -29,53 +28,89 @@ void setup(){
 	Serial.print("Card initialization successful\n");
 }
 
-byte add_user(char input_c, byte status){
-	static char local_input_buffer[BUFFER_SIZE];
-	static byte i = 0, local_status = 0;
+void add_user(char* buffer){
+	byte i = 0;
+	char c;
+	File root = SD.open("/doggo/users.csv", FILE_WRITE);	
 	
-	if(status == TRANS_TRUE){
-		local_input_buffer[i] = input_c;
-		++i;
-		return READING;
-	} else if(status == TRANS_FALSE){
-		++local_status;
-		switch(local_status){
-			case 1:
-				Serial.print("entered username:\n");
-				Serial.print(local_input_buffer);
-				memset(local_input_buffer, 0, BUFFER_SIZE);
-				i = 0;
-				return WB1;
-			case 2:
-				Serial.print("entered code:\n");
-				Serial.print(local_input_buffer);
-				memset(local_input_buffer, 0, BUFFER_SIZE);
-				local_status = i = 0;
-				return WB2;
-		}
+	while((c = *(buffer + i)) != TERMINATE){
+		if(c == SPLIT){
+			root.write(',');
+			++i;
+		} else {
+			root.write(c);
+			++i;
+		} 
 	}
+	root.write('\n');
+	root.close();
 }
 
 void loop(){	
-	char input_buffer[BUFFER_SIZE];
-	char code_buffer[4];
 	char input_c;
+	static char input_buffer[BUFFER_SIZE];
+	byte mode_index;
 	static byte i = 0;
-	static byte status = 0;
+	static byte mode[3];		/*0 - ADD_USR, 1 - START_RUN, 2 - STOP_RUN*/
 	while(Serial.available()){
 		input_c = Serial.read();
 		switch(input_c){
-			case CR:
-				Serial.print('\n');
-				Serial.print(add_user('\0', TRANS_FALSE)); 
-				i = 0;
-				break;
 			case '1':
-				Serial.print("Adding new user\n");
-				status = TRANS_TRUE;
+				Serial.print("\nadd user\nusername:\t");
+				mode[0] = INPUT_1;	
+				break;
+			case '2':
+				Serial.print("\nstart run\nusername:\t");
+				mode[1] = INPUT_1;
+				break;
+			case '3':
+				Serial.print("\nstop run\nusername:\t");
+				mode[2] = INPUT_1;
+				break;
+			case CR:
+				for(mode_index = 0; mode[mode_index] == 0; ++mode_index)
+					;
+				switch(mode_index){
+					case 0:
+						if(mode[0] == INPUT_1){
+							input_buffer[i] = SPLIT;
+							++i;
+							Serial.print(input_buffer);	
+							--mode[0];
+							Serial.print("\ncode:\t");
+						} else {
+							input_buffer[i] = TERMINATE;
+							++i;
+							Serial.print(input_buffer);
+							add_user(input_buffer);
+							--mode[0];
+							memset(input_buffer, 0, i);
+							i = 0;
+						}
+						break;
+					case 1:
+						if(mode[1] == INPUT_1){
+							Serial.print("input 1!");	
+							--mode[1];
+						} else {
+							Serial.print("input 2!");	
+							--mode[1];
+						}
+						break;
+					case 2:
+						if(mode[2] == INPUT_1){
+							Serial.print("input 1!");	
+							--mode[2];
+						} else {
+							Serial.print("input 2!");	
+							--mode[2];
+						}
+						break;
+				}
+				break;
 			default:
 				Serial.print(input_c);
-				add_user(input_c, status);
+				input_buffer[i] = input_c;
 				++i;
 				break;
 		}
