@@ -11,13 +11,16 @@
 #define SPLIT '+'
 #define TERMINATE '|'
 
+byte str_cmp(char* str1, char* str2);
+byte is_unique(char* in_str);
+void add_user(char* buffer);
+
 void setup(){
 	Serial.begin(9600);
 	
-	while(!Serial){
+	while(!Serial)
 		;
-	}
-
+	
 	Serial.print("Initializing SD...\n");
 	
 	if(!SD.begin(CHIP_SELECT)){
@@ -26,6 +29,65 @@ void setup(){
 	} 
 
 	Serial.print("Card initialization successful\n");
+}
+
+void print_file(){
+	File f = SD.open("/doggo/users.csv", FILE_READ);
+	do{
+		Serial.print((char)f.read());
+	} while(f.peek() != EOF);
+	
+	f.close();
+}
+
+byte str_cmp(char* str1, char* str2){
+	Serial.println("input strings:");
+	Serial.println(str1);
+	Serial.println(str2);
+	static byte len = 0;
+	byte i = 0;
+	while(*(str1 + i) != 0)
+		if(*(str2 + i) != 0){
+			++len;
+			++i;
+		} else {
+			return 0;
+		} 
+	
+	for(; i <= len ; ++i, --len)
+		if(*(str1 + i) != *(str2 + i) || *(str1 + len) != *(str2 + len))
+			return 0;
+	
+	
+	return 1;
+}
+
+byte is_unique(char* in_str){
+	File root = SD.open("/doggo/users.csv", FILE_READ);
+	char cmp[BUFFER_SIZE - 6];
+	char c;
+	byte i = 0;
+	while((c = root.read()) != EOF){
+		switch(c){
+			case ',':
+				if(str_cmp(in_str, cmp) == 0){
+				memset(cmp, 0, i);
+				i = 0;
+				} else {
+					return 0;
+				}
+				break;
+			case '\n':
+				memset(cmp, 0, i);	
+				i = 0;
+				break;
+			default:
+				cmp[i] = c;
+				++i;
+				break;	
+		}
+	}
+	return 1;
 }
 
 void add_user(char* buffer){
@@ -67,17 +129,24 @@ void loop(){
 				Serial.print("\nstop run\nusername:\t");
 				mode[2] = INPUT_1;
 				break;
+			case '4':
+				print_file();
+				break;
 			case CR:
 				for(mode_index = 0; mode[mode_index] == 0; ++mode_index)
 					;
 				switch(mode_index){
 					case 0:
 						if(mode[0] == INPUT_1){
-							input_buffer[i] = SPLIT;
-							++i;
-							Serial.print(input_buffer);	
-							--mode[0];
-							Serial.print("\ncode:\t");
+							if(is_unique(input_buffer) == 1){
+								input_buffer[i] = SPLIT;
+								++i;
+								Serial.print(input_buffer);	
+								--mode[0];
+								Serial.print("\ncode:\t");
+							} else {
+								Serial.print("username taken!\n");
+							}
 						} else {
 							input_buffer[i] = TERMINATE;
 							++i;
