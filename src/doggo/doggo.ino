@@ -12,8 +12,10 @@
 #define TERMINATE '|'
 
 byte str_cmp(char* str1, char* str2);
-byte is_unique(char* in_str);
+unsigned long is_unique(char* in_str);
+byte log_in(char* usr_name);
 void add_user(char* buffer);
+void print_file();
 
 void setup(){
 	Serial.begin(9600);
@@ -62,7 +64,7 @@ byte str_cmp(char* str1, char* str2){
 	return 1;
 }
 
-byte is_unique(char* in_str){
+unsigned long is_unique(char* in_str){
 	File root = SD.open("/doggo/users.csv", FILE_READ);
 	char cmp[BUFFER_SIZE - 6];
 	char c;
@@ -74,7 +76,7 @@ byte is_unique(char* in_str){
 				memset(cmp, 0, i);
 				i = 0;
 				} else {
-					return 0;
+					return root.position() + 1;
 				}
 				break;
 			case '\n':
@@ -87,6 +89,23 @@ byte is_unique(char* in_str){
 				break;	
 		}
 	}
+	return 0;
+}
+
+byte log_in(char* code, unsigned long pos){
+	File f = SD.open("/doggo/users.csv", FILE_READ);
+	byte i = 0;
+	char code_buff[10];
+	char c;
+	f.seek(pos);
+	while((c = f.read()) != '\n'){
+		code_buf[i] = c;
+		++i;		
+	}
+	
+	if(str_cmp(code_buf, code) == 0)
+		return 0;
+	
 	return 1;
 }
 
@@ -138,7 +157,7 @@ void loop(){
 				switch(mode_index){
 					case 0:
 						if(mode[0] == INPUT_1){
-							if(is_unique(input_buffer) == 1){
+							if(is_unique(input_buffer) == 0){
 								input_buffer[i] = SPLIT;
 								++i;
 								Serial.print(input_buffer);	
@@ -159,7 +178,9 @@ void loop(){
 						break;
 					case 1:
 						if(mode[1] == INPUT_1){
-							Serial.print("input 1!");	
+							if(is_unique(input_buffer) > 0){
+								/* get status across to the else statement */	
+							}
 							--mode[1];
 						} else {
 							Serial.print("input 2!");	
@@ -185,4 +206,3 @@ void loop(){
 		}
 	} 
 }	
-
