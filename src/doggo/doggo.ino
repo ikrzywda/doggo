@@ -19,7 +19,7 @@ void print_file();
 
 void setup(){
 	Serial.begin(9600);
-	
+
 	while(!Serial)
 		;
 	
@@ -38,7 +38,6 @@ void print_file(){
 	do{
 		Serial.print((char)f.read());
 	} while(f.peek() != EOF);
-	
 	f.close();
 }
 
@@ -99,11 +98,11 @@ byte log_in(char* code, unsigned long pos){
 	char c;
 	f.seek(pos);
 	while((c = f.read()) != '\n'){
-		code_buf[i] = c;
+		code_buff[i] = c;
 		++i;		
 	}
 	
-	if(str_cmp(code_buf, code) == 0)
+	if(str_cmp(code_buff, code) == 0)
 		return 0;
 	
 	return 1;
@@ -133,6 +132,7 @@ void loop(){
 	byte mode_index;
 	static byte i = 0;
 	static byte mode[3];		/*0 - ADD_USR, 1 - START_RUN, 2 - STOP_RUN*/
+	unsigned long pos;			/* position in file stream */
 	while(Serial.available()){
 		input_c = Serial.read();
 		switch(input_c){
@@ -178,12 +178,22 @@ void loop(){
 						break;
 					case 1:
 						if(mode[1] == INPUT_1){
-							if(is_unique(input_buffer) > 0){
-								/* get status across to the else statement */	
+							if((pos = is_unique(input_buffer)) > 0){
+								memset(input_buffer, 0, i);
+								i = 0;
+								--mode[1];
+								Serial.print("\ncode: ");
+							} else {
+								mode[1] = 0;
+								i = 0;
+								Serial.print("\nusername not found!\n");
 							}
-							--mode[1];
 						} else {
-							Serial.print("input 2!");	
+							if(log_in(input_buffer, pos) == 1){
+								Serial.print("\nlogged in!");
+							} else {
+								Serial.print("\nwrong code!");
+							}
 							--mode[1];
 						}
 						break;
