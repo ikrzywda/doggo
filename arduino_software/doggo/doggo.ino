@@ -10,11 +10,15 @@
 #define SPLIT '+'
 #define TERMINATE '|'
 
+#define USERS "/doggo/users.csv"
+#define USER_HEADER "username,code\n"
+
 byte str_cmp(char* str1, char* str2);
 unsigned long is_unique(char* in_str);
 byte log_in(char* usr_name);
 void add_user(char* buffer);
 void print_file();
+byte make_header(char* filename);
 
 void setup(){
 	Serial.begin(115200);
@@ -28,12 +32,28 @@ void setup(){
 		Serial.print("Initialization failed\n\r");
 		while(1);
 	} 
+	
+	if(make_header())
+		Serial.print("Card initialization successful, file users.csv created\n\r");
+	else
+		Serial.print("Card initialization successful, file users.csv exists\n\r");
+}
 
-	Serial.print("Card initialization successful\n\r");
+byte make_header(){
+	File f;
+	if(SD.exists(USERS))
+		return 0;
+	else{
+		f = SD.open(USERS, FILE_WRITE);
+		f.print(USER_HEADER);
+		f.close();
+		return 1;
+	}
 }
 
 void print_file(){
-	File f = SD.open("/doggo/users.csv", FILE_READ);
+	File f = SD.open(USERS, FILE_READ);
+
 	do{
 		Serial.print((char)f.read());
 	} while(f.peek() != EOF);
@@ -63,7 +83,7 @@ byte str_cmp(char* str1, char* str2){
 }
 
 unsigned long is_unique(char* in_str){
-	File root = SD.open("/doggo/users.csv", FILE_READ);
+	File root = SD.open(USERS, FILE_READ);
 	unsigned long pos;
 	char cmp[BUFFER_SIZE - 6];
 	char c;
@@ -95,7 +115,7 @@ unsigned long is_unique(char* in_str){
 }
 
 byte log_in(char* code, unsigned long pos){
-	File f = SD.open("/doggo/users.csv", FILE_READ);
+	File f = SD.open(USERS, FILE_READ);
 	byte i = 0;
 	char code_buff[10];
 	char c;
@@ -123,7 +143,7 @@ byte log_in(char* code, unsigned long pos){
 void add_user(char* buffer){
 	byte i = 0;
 	char c;
-	File root = SD.open("/doggo/users.csv", FILE_WRITE);	
+	File root = SD.open(USERS, FILE_WRITE);	
 	
 	while((c = *(buffer + i)) != TERMINATE){
 		if(c == SPLIT){
