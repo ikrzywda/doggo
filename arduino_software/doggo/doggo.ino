@@ -16,7 +16,6 @@
 byte str_cmp(char* str1, char* str2);
 unsigned long is_unique(char* in_str);
 byte log_in(char* usr_name);
-void add_user(char* buffer);
 void print_file();
 byte make_header(char* filename);
 byte str_len(char* str);
@@ -28,6 +27,7 @@ typedef struct{
 }user_cred;
 
 int tokenize(long pos, user_cred* usr);
+byte add_user(user_cred* usr);
 
 void setup(){
 	Serial.begin(115200);
@@ -64,9 +64,12 @@ byte make_header(){
 
 void print_file(){
 	File f = SD.open(USERS, FILE_READ);
-
+	char c;
 	do{
-		Serial.print((char)f.read());
+		if((c = f.read()) == '\n')
+			Serial.print("\r\n");
+		else
+			Serial.print(c);
 	} while(f.peek() != EOF);
 	f.close();
 }
@@ -178,22 +181,15 @@ byte log_in(char* code, unsigned long pos){
 	return 1;
 }
 
-void add_user(char* buffer){
-	byte i = 0;
-	char c;
-	File root = SD.open(USERS, FILE_WRITE);	
-	
-	while((c = *(buffer + i)) != TERMINATE){
-		if(c == SPLIT){
-			root.write(',');
-			++i;
-		} else {
-			root.write(c);
-			++i;
-		} 
-	}
-	root.write("\n");
-	root.close();
+byte add_user(user_cred* usr){
+	File f = SD.open(USERS, FILE_WRITE);	
+	f.print(usr->code);
+	Serial.print(usr->username);
+	f.write(',');
+	f.print(usr->code);
+	f.write(',');
+	f.close();
+	return 1;
 }
 unsigned long is_unique(char* str){
 	return 0;
@@ -229,21 +225,24 @@ void loop(){
 				switch(mode_index){
 					case 0:
 						if(mode[0] == INPUT_1){
-							Serial.print("pos: ");
-							Serial.print(find_pattern(input_buffer));
-							Serial.print(usr.username);
-							Serial.print(":");
-							Serial.print(usr.code);
-							Serial.print("\n\r");
-							memset(input_buffer, BUFFER_SIZE, 0);
+							Serial.println(input_buffer);
+							input_buffer[i] = '\0';
+							Serial.println(input_buffer);
+							if(find_pattern(input_buffer) == -1){
+								usr.username = input_buffer;
+								Serial.print(usr.username);
+							}
+							memset(input_buffer, i, 0);
 							--mode[0];
-							Serial.print("\r\ncode:\t");
-							mode[0] = 0;
+							i = 0;
+							Serial.print("\r\ncode: \t");
 						} else {
-							input_buffer[i] = TERMINATE;
-							++i;
-							Serial.print(input_buffer);
-							add_user(input_buffer);
+							input_buffer[i] = '\0';
+							usr.code = input_buffer;
+							Serial.print(usr.username);
+							Serial.print(usr.code);
+							add_user(&usr);
+							Serial.print("\r\nuser added!");
 							--mode[0];
 							memset(input_buffer, 0, i);
 							i = 0;
