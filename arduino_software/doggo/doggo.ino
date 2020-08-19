@@ -20,11 +20,14 @@ void add_user(char* buffer);
 void print_file();
 byte make_header(char* filename);
 byte str_len(char* str);
+long find_pattern(char* str);
 
-typedef struct user_cred{
-	char* usersname;
+typedef struct{
+	char* username;
 	char* code;
-};
+}user_cred;
+
+int tokenize(long pos, user_cred* usr);
 
 void setup(){
 	Serial.begin(115200);
@@ -38,11 +41,13 @@ void setup(){
 		Serial.print("Initialization failed\n\r");
 		while(1);
 	} 
-	
-	if(make_header())
-		Serial.print("Card initialization successful, file users.csv created\n\r");
-	else
-		Serial.print("Card initialization successful, file users.csv exists\n\r");
+
+	user_cred usr;
+	print_file();
+	Serial.println(find_pattern("this"));
+	tokenize(find_pattern("Igor"), &usr);
+	Serial.println(usr.username);
+	Serial.println(usr.code);
 }
 
 byte make_header(){
@@ -67,9 +72,6 @@ void print_file(){
 }
 
 byte str_cmp(char* str1, char* str2){
-	Serial.println("input strings:");
-	Serial.println(str1);
-	Serial.println(str2);
 	static byte len = 0;
 	byte i = 0;
 	while(*(str1 + i) != 0)
@@ -94,39 +96,60 @@ byte str_len(char* str){
 	return l;
 }
 
-unsigned long find_pattern(char* str){
-	File f = SD.open(USERS);
-	char c, i = 0;
-	byte l = str_len(str);
-	unsigned long pos_1 = 0, pos_2;
-
-	while(f.seek(pos_1) == true){
-		if(f.read() == *str){
-			++i;
-			pos_2 = pos_1 + i;
-			while(i < l){
-				f.seek(pos_2);
-				c = f.read();
-				if(c != *(str + i)){
-					pos_2 = 0;
-					i = 0;
-					break;
-				}else if(f.peek() == ',' && i == l - 1){
-					return pos_1;
-				}else{
-					++pos_2;
-					++i;
-				}
-			}
+int tokenize(long pos, user_cred* usr){
+	File f = SD.open(USERS, FILE_READ);
+	char c, status = 0;
+	int i = 0;
+	char username[15];
+	char code[15];
+	if(pos == -1){
+		f.close();
+		return -1;
+	}
+	f.seek(pos);
+	while((c = f.read()) != '\n'){
+		if(c == ','){
+			status = 1;
+			username[i] = '\0';
+			c = f.read();
+			i = 0;
 		}
-		for(; (c = f.read()) != '\n';){
-			if(c == EOF){
-				break;
-			} else {
-				pos_1 = f.position() + 2;
+		if(status == 1)
+			code[i] = c;
+		else
+			username[i] = c;
+		++i;
+	}
+	code[i] = '\0';
+	f.close();
+	usr->username = username;
+	usr->code = code;
+	return 1;
+}
+
+long find_pattern(char* str){
+	File f = SD.open(USERS, FILE_READ);
+	char c;
+	int i, len = str_len(str);
+	long pos = 0;
+	while(c != EOF){
+		c = f.read();
+		if(c == *str){
+			pos = f.position();
+			for(i = 1, c = f.read();  i < len; ++i, c = f.read()){
+				if(c != *(str + i))
+					break;
+			}
+			if(i == len){
+				f.close();
+				return pos - 1;
+			}else{
+				i = 0;
 			}
 		}
 	}
+	f.close();
+	return -1;
 }
 
 byte log_in(char* code, unsigned long pos){
@@ -182,6 +205,7 @@ void loop(){
 	static byte i = 0;
 	static byte mode[3];		/*0 - ADD_USR, 1 - START_RUN, 2 - STOP_RUN*/
 	unsigned long pos;			/* position in file stream */
+	user_cred usr;
 	while(Serial.available()){
 		input_c = Serial.read();
 		switch(input_c){
@@ -201,13 +225,16 @@ void loop(){
 				print_file();
 				break;
 			case '\r':
-				for(mode_index = 0; mode[mode_index] == 0; ++mode_index)
-					;
+				for(mode_index = 0; mode[mode_index] == 0; ++mode_index);
 				switch(mode_index){
 					case 0:
 						if(mode[0] == INPUT_1){
 							Serial.print("pos: ");
 							Serial.print(find_pattern(input_buffer));
+							Serial.print(usr.username);
+							Serial.print(":");
+							Serial.print(usr.code);
+							Serial.print("\n\r");
 							memset(input_buffer, BUFFER_SIZE, 0);
 							--mode[0];
 							Serial.print("\r\ncode:\t");
