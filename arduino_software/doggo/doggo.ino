@@ -3,19 +3,16 @@
 #include <SPI.h>
 #include <SD.h>
 
+#define USERS_FILE "/doggo/users.csv"
 #define CHIP_SELECT 10
 #define BUFFER_SIZE 17
 #define MAX_RECORD_SIZE 50
 #define FIELD_SIZE 3
-
-#define USERS_FILE "/doggo/users.csv"
-
 #define CRAWL_BUTTON 3
 #define BACKSPACE_BUTTON 4
 #define DWN_BUTTON 5
 #define UP_BUTTON 6
-#define CR_BUTTON 7     // carriage return button
-#define IN_POT A3       // input potentiometer
+#define CR_BUTTON 7     
 
 typedef struct{
     int up;
@@ -30,12 +27,17 @@ typedef struct{
     char* code;
 }user;
 
-char* get_input(kbl* in, int but_crawl);
+char* read_input(kbl* in, int but_crawl);
 char* get_record(File f);
 char* get_field(File f, char* record, byte record_index);
+user* read_login_info();
+byte add_user();
 void test_routine();
+void print_message_to_lcd(char* text);
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+kbl input;
 
 void setup(){
     Serial.begin(115200);
@@ -58,9 +60,25 @@ void setup(){
     pinMode(UP_BUTTON, INPUT);
     pinMode(DWN_BUTTON, INPUT);
 
+    input.up = UP_BUTTON;
+    input.down = DWN_BUTTON;
+    input.backspace = BACKSPACE_BUTTON;
+    input.carriage_return = CR_BUTTON;
+    input.num = 0;
+
     lcd.init();                   
     lcd.backlight();
 
+}
+
+void loop(){
+    if(digitalRead(DWN_BUTTON)){
+        delay(200);
+        add_user();
+    }else{
+        lcd.setCursor(0,0);
+        lcd.print("DOGGO");
+    }
 }
 
 char* get_record(File f){
@@ -105,8 +123,8 @@ void test_routine(){
     free(field);
 }
 
-char* get_input(kbl* in, int but_crawl){
-    char *buffer = (char*)malloc(sizeof(char) * BUFFER_SIZE);
+char* read_input(kbl* in, int but_crawl){
+    char *buffer = malloc(sizeof(char) * BUFFER_SIZE);
     char current_char, current_pos = 0, i = 0;
     current_char = in -> num ? '0' : 'a';
     while(1){
@@ -149,35 +167,36 @@ char* get_input(kbl* in, int but_crawl){
     }
 }
 
-void loop(){
-    kbl input;
-    input.up = UP_BUTTON;
-    input.down = DWN_BUTTON;
-    input.backspace = BACKSPACE_BUTTON;
-    input.carriage_return = CR_BUTTON;
-    input.num = 0;
-
-    user usr;
-    usr.login = (char*)malloc(sizeof(char) * BUFFER_SIZE);
-    usr.code = (char*)malloc(sizeof(char) * BUFFER_SIZE);
-
-    if(digitalRead(DWN_BUTTON)){
-        delay(200);
-        lcd.clear();
-        lcd.setCursor(0,0);
-        lcd.print("LOGIN:");
-        input.num = 0;
-        usr.login = get_input(&input, CRAWL_BUTTON);
-        lcd.clear();
-        lcd.setCursor(0,0);
-        lcd.print("CODE:");
-        input.num = 1;
-        usr.code = get_input(&input, CRAWL_BUTTON);
-    }else{
-        lcd.setCursor(0,0);
-        lcd.print("DOGGO");
-    }
+void print_message_to_lcd(char* text){
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print(text);
 }
 
+user* read_login_info(){
+    user *usr = malloc(sizeof(usr));  
+    print_message_to_lcd("LOGIN:");
+    usr -> login = read_input(&input, CRAWL_BUTTON);
+    input.num = 1;
+    print_message_to_lcd("CODE:");
+    usr -> code = read_input(&input, CRAWL_BUTTON);
+    input.num = 0;
+    return usr;
+}
 
+byte find_field(char* search_field){
+    char *record = malloc(sizeof(char) * MAX_RECORD_SIZE);
+    char *field = malloc(sizeof(char) * BUFFER_SIZE);
+
+    free(record);
+    free(field);
+    return 1;
+}
+
+byte add_user(){
+    user *usr = read_login_info();
+    
+    free(usr);
+    return 1;
+}
 
