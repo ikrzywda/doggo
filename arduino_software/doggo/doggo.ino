@@ -7,7 +7,6 @@
 #define CHIP_SELECT 10
 #define BUFFER_SIZE 17
 #define MAX_RECORD_SIZE 50
-#define FIELD_SIZE 3
 #define CRAWL_BUTTON 3
 #define BACKSPACE_BUTTON 4
 #define DWN_BUTTON 5
@@ -27,26 +26,34 @@ typedef struct{
     char* code;
 }user;
 
+char record_buffer[MAX_RECORD_SIZE];
+char field_buffer[BUFFER_SIZE];
+char input_buffer[BUFFER_SIZE];
+kbl input;
+user usr;
+
 char* read_input(kbl* in, int but_crawl);
-char* get_record(File f);
-char* get_field(File f, char* record, byte record_index);
-user* read_login_info();
+char* load_record_to_buffer(File f);
+char* load_field_to_buffer(unsigned field_index, char delimiter);
+void read_login_info();
 byte add_user();
 void test_routine();
 void print_message_to_lcd(char* text);
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-kbl input;
 
 void setup(){
     Serial.begin(115200);
     while(!Serial);
 
+    delay(500);
+
     if(!SD.begin(CHIP_SELECT)){
         Serial.println("Initialization failed!");
         while(1);
     }
+
 
     Serial.println("Initialization successful!");
     Serial.println("Testing!");
@@ -81,50 +88,42 @@ void loop(){
     }
 }
 
-char* get_record(File f){
-    char *record = malloc(sizeof(char) * MAX_RECORD_SIZE);
-    int c, i = 0;
+char* load_record_to_buffer(File f){
+    char *buffer_ptr = record_buffer;
+    int c;
     while((c = f.read()) != '\n'){
         if(c == EOF) return NULL;
-        *(record + i) = c;
-        ++i;
+        *buffer_ptr++ = c;
     }
-    *(record + i) = '\0';
-    return record;
+    *buffer_ptr = '\0';
+    return record_buffer;
 }
 
-char* get_field(char *record, char delimiter, unsigned field_index){
-    char *field = malloc(sizeof(char) * FIELD_SIZE);
-    char c, *ptr = field;
-    
-    while((c = *record++) != '\0'){
-        if(c == delimiter){
+char* load_field_to_buffer(unsigned field_index, char delimiter){
+    char *record_buffer_ptr = record_buffer;
+    char *field_buffer_ptr = field_buffer;
+    char c;
+    while((c = *record_buffer_ptr++) != '\0'){
+        if(c == delimiter)
             field_index--; 
-        }
-
-        if(field_index == 0){
-            if(c != ',' && c != ' ') *field++ = c;
-        }
+        if(field_index == 0)
+            if(c != ',' && c != ' ') *field_buffer_ptr++ = c;
     }
-
-    *field = '\0';
-    return ptr;
+    *field_buffer_ptr = '\0';
+    return field_index > 0 ? NULL : field_buffer;
 }
 
 void test_routine(){
     File f = SD.open(USERS_FILE, FILE_READ);
-    char *record, *field;
-    record = get_record(f);
-    field = get_field(record, ',',  0);
-    Serial.println(record);
-    Serial.println(field);
+    load_record_to_buffer(f);
+    load_field_to_buffer(0, ',');
+    Serial.println(record_buffer);
+    Serial.println(field_buffer);
     f.close();
-    free(record);
-    free(field);
 }
 
 char* read_input(kbl* in, int but_crawl){
-    char *buffer = malloc(sizeof(char) * BUFFER_SIZE);
+    char *input_buffer_ptr = input_buffer;
     char current_char, current_pos = 0, i = 0;
     current_char = in -> num ? '0' : 'a';
     while(1){
@@ -149,20 +148,20 @@ char* read_input(kbl* in, int but_crawl){
             delay(200);
             lcd.write(' ');
             --i;
-            *(buffer + i) = ' ';
+            *(input_buffer_ptr + i) = ' ';
             current_pos = current_pos > 0 ? current_pos - 1 : 0;
             lcd.setCursor(current_pos, 1);
             lcd.write(' ');
         }else if(digitalRead(in -> carriage_return)){
             delay(200);
-            *(buffer + i) = current_char;
+            *(input_buffer_ptr + i) = current_char;
             current_char = in -> num ? '0' : 'a';
             current_pos = current_pos < (BUFFER_SIZE - 1) ? current_pos + 1 : current_pos;
             i = i < (BUFFER_SIZE - 1) ? i + 1 : i;;
         }else if(digitalRead(but_crawl)){
             delay(200);
-            *(buffer + i) = '\0';
-            return buffer;
+            *(input_buffer_ptr + i) = '\0';
+            return input_buffer;
         }
     }
 }
@@ -173,15 +172,13 @@ void print_message_to_lcd(char* text){
     lcd.print(text);
 }
 
-user* read_login_info(){
-    user *usr = malloc(sizeof(usr));  
+void read_login_info(){
     print_message_to_lcd("LOGIN:");
-    usr -> login = read_input(&input, CRAWL_BUTTON);
+    usr.login = read_input(&input, CRAWL_BUTTON);
     input.num = 1;
     print_message_to_lcd("CODE:");
-    usr -> code = read_input(&input, CRAWL_BUTTON);
+    usr.code = read_input(&input, CRAWL_BUTTON);
     input.num = 0;
-    return usr;
 }
 
 byte find_field(char* search_field){
@@ -194,9 +191,8 @@ byte find_field(char* search_field){
 }
 
 byte add_user(){
-    user *usr = read_login_info();
-    
-    free(usr);
+    read_login_info(); 
+    File f = SD.open(USERS_FILE, FILE_READ);
     return 1;
 }
 
