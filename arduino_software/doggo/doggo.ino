@@ -3,7 +3,9 @@
 #include <SPI.h>
 #include <SD.h>
 
+#define USERS_RECORDS_DIR "/doggo/records/"
 #define USERS_FILE "/doggo/users.csv"
+#define HEADER_RECORD "time_in,time_out\n\0"
 #define CHIP_SELECT 10
 #define BUFFER_SIZE 17
 #define MAX_RECORD_SIZE 50
@@ -196,22 +198,40 @@ byte find_login(){
     return is_found;
 }
 
+void add_user_file(char* filepath){
+    File f = SD.open(filepath, FILE_WRITE);
+    f.print(HEADER_RECORD);
+    f.close();
+}
+
 byte add_user(){
     File f;
     char record[2 * BUFFER_SIZE + 1];
     read_login_info(); 
     if(!find_login()){
         f = SD.open(USERS_FILE, FILE_WRITE);
-        sprintf(record, "%s,%s\n\r\0", usr.login, usr.code);
+        sprintf(record, "%s,%s\n\0", usr.login, usr.code);
         f.print(record);
         f.close();
+        sprintf(record, "%s%s.csv\0", USERS_RECORDS_DIR, usr.login);
+        Serial.println(record);
+        add_user_file(record);
         print_file(USERS_FILE);
+        print_directory(USERS_RECORDS_DIR);
         return 1;
     }else{
         print_file(USERS_FILE);
     }
     return 0;
 }
+
+void print_directory(char* path){
+    File entry = SD.open(path, FILE_READ);
+    while((entry = entry.openNextFile()) != NULL)
+        Serial.println(entry.name());
+    entry.close();
+}
+
 
 void print_file(char* filename){
     Serial.print(filename);
@@ -224,7 +244,7 @@ void print_file(char* filename){
         else
             Serial.print(c);
     }
- }
+}
 
 void test_routine(){
     File f = SD.open(USERS_FILE, FILE_READ);
@@ -236,5 +256,5 @@ void test_routine(){
     Serial.println(find_field(f, "bbb", 0));
     Serial.println(find_field(f, "ccc", 0));
     f.close();
+    print_directory(USERS_RECORDS_DIR);
 }
-
