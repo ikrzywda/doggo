@@ -9,6 +9,7 @@
 #define CHIP_SELECT 10
 #define BUFFER_SIZE 17
 #define MAX_RECORD_SIZE 50
+#define MAX_PATH_SIZE 30
 #define CRAWL_BUTTON 3
 #define BACKSPACE_BUTTON 4
 #define DWN_BUTTON 5
@@ -31,6 +32,9 @@ typedef struct{
 char input_buffer[BUFFER_SIZE];
 char record_buffer[MAX_RECORD_SIZE];
 char field_buffer[BUFFER_SIZE];
+char path_buffer[MAX_PATH_SIZE];
+
+static unsigned long time;
 
 kbl input;
 user usr;
@@ -42,7 +46,11 @@ byte load_record_to_buffer(File f);
 byte load_field_to_buffer(unsigned field_index, char delimiter);
 byte find_field(File f, char* search_field, unsigned field_index);
 byte find_login();
+byte make_record_path();
 byte add_user();
+byte start_run();
+byte end_run();
+void login();
 void print_file(char* filename);
 void test_routine();
 
@@ -50,28 +58,25 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 
 void setup(){
+    pinMode(CRAWL_BUTTON, INPUT);
+    pinMode(BACKSPACE_BUTTON, INPUT);
+    pinMode(CR_BUTTON, INPUT);
+    pinMode(UP_BUTTON, INPUT);
+    pinMode(DWN_BUTTON, INPUT);
+    pinMode(CHIP_SELECT, OUTPUT);
+
     Serial.begin(115200);
     while(!Serial);
-
-    delay(500);
 
     if(!SD.begin(CHIP_SELECT)){
         Serial.println("Initialization failed!");
         while(1);
     }
 
-
     Serial.println("Initialization successful!");
-    Serial.println("Testing!");
 
     test_routine();
-    Serial.println("Test done!");
 
-    pinMode(CRAWL_BUTTON, INPUT);
-    pinMode(BACKSPACE_BUTTON, INPUT);
-    pinMode(CR_BUTTON, INPUT);
-    pinMode(UP_BUTTON, INPUT);
-    pinMode(DWN_BUTTON, INPUT);
 
     input.up = UP_BUTTON;
     input.down = DWN_BUTTON;
@@ -85,12 +90,16 @@ void setup(){
     lcd.init();                   
     lcd.backlight();
 
+    time = millis();
 }
 
 void loop(){
     if(digitalRead(DWN_BUTTON)){
         delay(200);
         add_user();
+    }else if(digitalRead(UP_BUTTON)){
+        delay(200);
+        login();
     }else{
         lcd.setCursor(0,0);
         lcd.print("DOGGO");
@@ -165,25 +174,24 @@ byte load_record_to_buffer(File f){
     return 1;
 }
 
-byte load_field_to_buffer(unsigned field_index, char delimiter){
+byte load_field_to_buffer(unsigned field_index){
     char *record_buffer_ptr = record_buffer;
     char *field_buffer_ptr = field_buffer;
     char c;
     while((c = *record_buffer_ptr++) != '\0'){
-        if(c == delimiter)
+        if(c == ',')
             field_index--; 
         if(field_index == 0)
-            if(c != ',' && c != ' ' || c != '\n' || c != '\r')
+            if(c != ',' && c != ' ' && c != '\n' && c != '\r')
                 *field_buffer_ptr++ = c;
     }
     *field_buffer_ptr = '\0';
     return field_index > 0 ? 0 : 1;
 }
 
-
 byte find_field(File f, char* search_field, unsigned field_index){
     while(load_record_to_buffer(f)){
-        load_field_to_buffer(field_index, ',');
+        load_field_to_buffer(field_index);
         if(!strcmp(search_field, field_buffer))
             return 1;
     }
@@ -196,6 +204,34 @@ byte find_login(){
     is_found = find_field(f, usr.login, 0);
     f.close();
     return is_found;
+}
+
+byte check_login_info(){
+    File f = SD.open(USERS_FILE, FILE_READ);
+    while(load_record_to_buffer(f)){
+        load_field_to_buffer(0);                     /* load login field to buffer */ 
+        Serial.println(field_buffer);
+        if(!strcmp(usr.login, field_buffer)){
+            load_field_to_buffer(1);                 /* load code field to buffer */
+            Serial.println(field_buffer);
+            if(!strcmp(usr.code, field_buffer)){
+                f.close();
+                return 1;
+            }
+        }
+    }
+    f.close();
+    return 0;
+}
+
+byte make_record_path(){
+    if(*(usr.login) == '\0'){
+    Serial.println("No user selected");
+    return 0;
+    }
+    sprintf(path_buffer, "%s%s.csv\0", USERS_RECORDS_DIR, usr.login);
+    Serial.println(path_buffer);
+    return 1;
 }
 
 void add_user_file(char* filepath){
@@ -213,11 +249,9 @@ byte add_user(){
         sprintf(record, "%s,%s\n\0", usr.login, usr.code);
         f.print(record);
         f.close();
-        sprintf(record, "%s%s.csv\0", USERS_RECORDS_DIR, usr.login);
-        Serial.println(record);
-        add_user_file(record);
+        make_record_path();
+        add_user_file(path_buffer);
         print_file(USERS_FILE);
-        print_directory(USERS_RECORDS_DIR);
         return 1;
     }else{
         print_file(USERS_FILE);
@@ -225,13 +259,14 @@ byte add_user(){
     return 0;
 }
 
-void print_directory(char* path){
-    File entry = SD.open(path, FILE_READ);
-    while((entry = entry.openNextFile()) != NULL)
-        Serial.println(entry.name());
-    entry.close();
+void login(){
+    read_login_info();
+    if(check_login_info()){
+        print_message_to_lcd("RUN STARTED"); 
+    }else{
+        print_message_to_lcd("WRONG INFO"); 
+    }
 }
-
 
 void print_file(char* filename){
     Serial.print(filename);
@@ -247,14 +282,17 @@ void print_file(char* filename){
 }
 
 void test_routine(){
-    File f = SD.open(USERS_FILE, FILE_READ);
-    load_record_to_buffer(f);
-    load_field_to_buffer(0, ',');
-    Serial.println(record_buffer);
-    Serial.println(field_buffer);
-    print_file(USERS_FILE);
-    Serial.println(find_field(f, "bbb", 0));
-    Serial.println(find_field(f, "ccc", 0));
-    f.close();
-    print_directory(USERS_RECORDS_DIR);
+    Serial.println("testing!");
+    usr.login = "bbb";
+    usr.code = "2111";
+    Serial.println(check_login_info());
+    usr.login = "one";
+    make_record_path();
+    usr.login = "\0";
+    make_record_path();
+    usr.login = "three";
+    make_record_path();
+    usr.login = "four";
+    make_record_path();
+    Serial.println("test done!");
 }
