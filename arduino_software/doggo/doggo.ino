@@ -29,15 +29,15 @@ typedef struct{
     char* code;
 }user;
 
+kbl input;
+user usr;
+
+unsigned long time;
+
 char input_buffer[BUFFER_SIZE];
 char record_buffer[MAX_RECORD_SIZE];
 char field_buffer[BUFFER_SIZE];
 char path_buffer[MAX_PATH_SIZE];
-
-static unsigned long time;
-
-kbl input;
-user usr;
 
 void print_message_to_lcd(char* text);
 void read_input(kbl* in, char *input_buffer_ptr, char is_num);
@@ -77,7 +77,6 @@ void setup(){
 
     test_routine();
 
-
     input.up = UP_BUTTON;
     input.down = DWN_BUTTON;
     input.backspace = BACKSPACE_BUTTON;
@@ -89,8 +88,6 @@ void setup(){
 
     lcd.init();                   
     lcd.backlight();
-
-    time = millis();
 }
 
 void loop(){
@@ -167,7 +164,11 @@ byte load_record_to_buffer(File f){
     char *buffer_ptr = record_buffer;
     int c;
     while((c = f.read()) != '\n'){
-        if(c == EOF) return 0;
+        if(c == EOF){ 
+            *buffer_ptr++ = 'E';
+            *buffer_ptr = '\0';
+            return 0;
+        }
         *buffer_ptr++ = c;
     }
     *buffer_ptr = '\0';
@@ -259,10 +260,47 @@ byte add_user(){
     return 0;
 }
 
+byte check_walking_state(){
+    File f = SD.open(path_buffer, FILE_READ);
+    int c;
+    byte walking_status = 1;
+    Serial.println(path_buffer);
+    while((c = f.read()) != EOF){
+        if(c == ','){
+            walking_status = 0;
+        }else if(c == '\n'){
+            walking_status = 1;
+        }
+    }
+    f.close();
+    return walking_status;
+}
+
+void log_time_start(){
+    File f = SD.open(path_buffer, FILE_WRITE);
+    sprintf(record_buffer, "%ld,\0", millis());
+    f.print(record_buffer);
+    f.close();
+    print_file(path_buffer);
+}
+
+void log_time_end(){
+    File f = SD.open(path_buffer, FILE_WRITE);
+    sprintf(record_buffer, "%ld\n\0", millis()); 
+    f.print(record_buffer);
+    f.close();
+    print_file(path_buffer);
+}
+
 void login(){
     read_login_info();
     if(check_login_info()){
+        make_record_path();
         print_message_to_lcd("RUN STARTED"); 
+        if(check_walking_state())
+            log_time_start();
+        else
+            log_time_end();
     }else{
         print_message_to_lcd("WRONG INFO"); 
     }
@@ -270,29 +308,17 @@ void login(){
 
 void print_file(char* filename){
     Serial.print(filename);
-    Serial.print(":\n");
+    Serial.print(":\n\r");
     File f = SD.open(filename, FILE_READ);
     char c;
     while((c = f.read()) != EOF){
-        if(c == '\n')
-            Serial.print("\n\r");
-        else
-            Serial.print(c);
+        Serial.write(c);
     }
+    Serial.println("end");
+    f.close();
 }
 
 void test_routine(){
-    Serial.println("testing!");
-    usr.login = "bbb";
-    usr.code = "2111";
-    Serial.println(check_login_info());
-    usr.login = "one";
-    make_record_path();
-    usr.login = "\0";
-    make_record_path();
-    usr.login = "three";
-    make_record_path();
-    usr.login = "four";
-    make_record_path();
-    Serial.println("test done!");
+    print_file("/doggo/test_2.csv");
+    print_file("/doggo/test_file.txt");
 }
