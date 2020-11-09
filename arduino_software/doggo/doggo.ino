@@ -3,18 +3,30 @@
 #include <SPI.h>
 #include <SD.h>
 
+/* messages for lcd */
+#define MSG_LOGIN "LOGIN:"
+#define MSG_CODE "KOD:"
+#define MSG_ADD_USR "NOWY PROFIL"
+#define MSG_USR_ADDED "PROFIL DODANY"
+#define MSG_USR_EXISTS "LOGIN ISNIEJE"
+#define MSG_WRONG_CRED "ZLE DANE"
+#define MSG_RUN_STARTED "MIŁEGO SPACERU!"
+#define MSG_RUN_ENDED "DOBRA ROBOTA!"
+#define MSG_DEFAULT "dogGo WITA!"
+#define MSG_ERR_0 "ERR:NO SD"
+/* filepaths */
 #define USERS_RECORDS_DIR "/doggo/records/"
 #define USERS_FILE "/doggo/users.csv"
-#define HEADER_RECORD "time_in,time_out\n\0"
+/* digital I/O */
 #define CHIP_SELECT 10
 #define BUFFER_SIZE 17
 #define MAX_RECORD_SIZE 50
 #define MAX_PATH_SIZE 30
 #define CRAWL_BUTTON 3
-#define BACKSPACE_BUTTON 4
-#define DWN_BUTTON 5
-#define UP_BUTTON 6
-#define CR_BUTTON 7     
+#define CR_BUTTON 4     
+#define UP_BUTTON 5
+#define DWN_BUTTON 6
+#define BACKSPACE_BUTTON 7
 
 typedef struct{
     int up;
@@ -32,14 +44,12 @@ typedef struct{
 kbl input;
 user usr;
 
-unsigned long time;
-
 char input_buffer[BUFFER_SIZE];
 char record_buffer[MAX_RECORD_SIZE];
 char field_buffer[BUFFER_SIZE];
 char path_buffer[MAX_PATH_SIZE];
 
-void print_message_to_lcd(char* text);
+void print_message_to_lcd(char* text, int display_time);
 void read_input(kbl* in, char *input_buffer_ptr, char is_num);
 void read_login_info(user* usr);
 byte load_record_to_buffer(File f);
@@ -66,7 +76,6 @@ void setup(){
     pinMode(CHIP_SELECT, OUTPUT);
 
     Serial.begin(115200);
-    while(!Serial);
 
     if(!SD.begin(CHIP_SELECT)){
         Serial.println("Initialization failed!");
@@ -74,8 +83,6 @@ void setup(){
     }
 
     Serial.println("Initialization successful!");
-
-    test_routine();
 
     input.up = UP_BUTTON;
     input.down = DWN_BUTTON;
@@ -98,15 +105,16 @@ void loop(){
         delay(200);
         login();
     }else{
-        lcd.setCursor(0,0);
-        lcd.print("DOGGO");
+        print_message_to_lcd(MSG_DEFAULT, 0);
     }
 }
 
-void print_message_to_lcd(char* text){
+void print_message_to_lcd(char* text, int display_time){
     lcd.clear();
     lcd.setCursor(0,0);
     lcd.print(text);
+    if(display_time > 0)
+        delay(display_time);
 }
 
 char* read_input(kbl* in, char is_num){
@@ -154,9 +162,9 @@ char* read_input(kbl* in, char is_num){
 }
 
 void read_login_info(){
-    print_message_to_lcd("LOGIN:");
+    print_message_to_lcd(MSG_LOGIN, 0);
     strcpy(usr.login, read_input(&input, 0));
-    print_message_to_lcd("CODE:");
+    print_message_to_lcd(MSG_CODE, 0);
     strcpy(usr.code, read_input(&input, 1));
 }
 
@@ -237,13 +245,13 @@ byte make_record_path(){
 
 void add_user_file(char* filepath){
     File f = SD.open(filepath, FILE_WRITE);
-    f.print(HEADER_RECORD);
     f.close();
 }
 
 byte add_user(){
     File f;
     char record[2 * BUFFER_SIZE + 1];
+    print_message_to_lcd(MSG_ADD_USR, 2000);
     read_login_info(); 
     if(!find_login()){
         f = SD.open(USERS_FILE, FILE_WRITE);
@@ -253,8 +261,10 @@ byte add_user(){
         make_record_path();
         add_user_file(path_buffer);
         print_file(USERS_FILE);
+        print_message_to_lcd(MSG_USR_ADDED, 2000);
         return 1;
     }else{
+        print_message_to_lcd(MSG_USR_EXISTS, 2000);
         print_file(USERS_FILE);
     }
     return 0;
@@ -282,6 +292,7 @@ void log_time_start(){
     f.print(record_buffer);
     f.close();
     print_file(path_buffer);
+    print_message_to_lcd(MSG_RUN_STARTED, 2000);
 }
 
 void log_time_end(){
@@ -290,19 +301,19 @@ void log_time_end(){
     f.print(record_buffer);
     f.close();
     print_file(path_buffer);
+    print_message_to_lcd(MSG_RUN_ENDED, 2000);
 }
 
 void login(){
     read_login_info();
     if(check_login_info()){
         make_record_path();
-        print_message_to_lcd("RUN STARTED"); 
         if(check_walking_state())
             log_time_start();
         else
             log_time_end();
     }else{
-        print_message_to_lcd("WRONG INFO"); 
+        print_message_to_lcd(MSG_WRONG_CRED, 2000); 
     }
 }
 
@@ -316,9 +327,4 @@ void print_file(char* filename){
     }
     Serial.println("end");
     f.close();
-}
-
-void test_routine(){
-    print_file("/doggo/test_2.csv");
-    print_file("/doggo/test_file.txt");
 }
