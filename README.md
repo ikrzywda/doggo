@@ -29,6 +29,7 @@ The build is very simple, all the libraries in the code should be compatible wit
 * BACKSPACE
 * CONFIRM CHARACTER
 * GO TO NEXT PAGE
+
 the system is not the best, but if you have an idea for improvement, share it!
 
 #### Firmware
