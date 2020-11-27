@@ -15,10 +15,6 @@ every person walking the dogs.
 For now the system can:
 1. Create and store users' profiles (login + code)
 2. Log time of walks with indicating the start and end of a walk
-The next features planned for the system are to:
-1. Display the duration of walk
-2. Audio feedback (sound ques for staring and ending walks)
-3. "Garbage collection" within records for reliable working
 
 #### Electronics
 
