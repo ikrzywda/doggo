@@ -3,165 +3,154 @@
 #include <SPI.h>
 #include <SD.h>
 
-/* messages for lcd */
-#define MSG_LOGIN "LOGIN:"
-#define MSG_CODE "KOD:"
-#define MSG_ADD_USR "NOWY PROFIL"
-#define MSG_USR_ADDED "PROFIL DODANY"
-#define MSG_USR_EXISTS "LOGIN ISNIEJE"
-#define MSG_WRONG_CRED "ZLE DANE"
-#define MSG_RUN_STARTED "MIŁEGO SPACERU!"
-#define MSG_RUN_ENDED "DOBRA ROBOTA!"
-#define MSG_DEFAULT "dogGo WITA!"
-#define MSG_ERR_0 "ERR:NO SD"
-/* filepaths */
+
+            /* LCD PROMPTS */
+const char MSG_LOGIN[] PROGMEM =        "LOGIN:";
+const char MSG_CODE[] PROGMEM =         "KOD:";
+const char MSG_ADD_USR[] PROGMEM =      "NOWY PROFIL";
+const char MSG_USR_ADDED[] PROGMEM =    "PROFIL DODANY";
+const char MSG_USR_EXISTS[] PROGMEM =   "LOGIN ISNIEJE";
+const char MSG_WRONG_CRED[] PROGMEM =   "ZLE DANE";
+const char MSG_RUN_STARTED[] PROGMEM =  "MIŁEGO SPACERU!";
+const char MSG_RUN_ENDED[] PROGMEM =    "DOBRA ROBOTA!";
+const char MSG_DEFAULT[] PROGMEM =      "dogGo WITA!";
+const char MSG_ERR_0[] PROGMEM =        "ERR:NO SD" ;
+
+            /* FILEPATHS */
 #define USERS_RECORDS_DIR "/doggo/records/"
 #define USERS_FILE "/doggo/users.csv"
-/* digital I/O */
-#define CHIP_SELECT 10
-#define BUFFER_SIZE 17
-#define MAX_RECORD_SIZE 50
-#define MAX_PATH_SIZE 30
-#define CRAWL_BUTTON 3
-#define CR_BUTTON 4     
-#define UP_BUTTON 5
-#define DWN_BUTTON 6
-#define BACKSPACE_BUTTON 7
 
-typedef struct{
-    int up;
-    int down;
-    int backspace;
-    int carriage_return;
-    int crawl_button;
-}kbl;
+            /* DIGITAL PINS */
+const byte CHIP_SELECT =    10;
+const byte MAX_PATH_SIZE =  30;
 
-typedef struct{
-    char* login;
-    char* code;
-}user;
 
-kbl input;
-user usr;
+/*          BUTTON LAYOUT
 
+                BTN_2
+        BTN_1           BTN_3       BTN_5
+                BTN_4
+*/
+
+const byte BUTTONS[5] = {7,5,4,6,3};
+
+            /* OTHER CONSTANTS */
+const byte BUFFER_SIZE =        17;
+const byte MAX_RECORD_SIZE =    50;
+
+            /* BUFFERS */
 char input_buffer[BUFFER_SIZE];
 char record_buffer[MAX_RECORD_SIZE];
 char field_buffer[BUFFER_SIZE];
 char path_buffer[MAX_PATH_SIZE];
 
-void print_message_to_lcd(char* text, int display_time);
-void read_input(kbl* in, char *input_buffer_ptr, char is_num);
-void read_login_info(user* usr);
-byte load_record_to_buffer(File f);
-byte load_field_to_buffer(unsigned field_index, char delimiter);
-byte find_field(File f, char* search_field, unsigned field_index);
-byte find_login();
-byte make_record_path();
-byte add_user();
-byte start_run();
-byte end_run();
-void login();
-void print_file(char* filename);
-void test_routine();
-
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 
-void setup(){
-    pinMode(CRAWL_BUTTON, INPUT);
-    pinMode(BACKSPACE_BUTTON, INPUT);
-    pinMode(CR_BUTTON, INPUT);
-    pinMode(UP_BUTTON, INPUT);
-    pinMode(DWN_BUTTON, INPUT);
-    pinMode(CHIP_SELECT, OUTPUT);
+void setup()
+{
+    
+    for(byte i = 0; i < 5; ++i) pinMode(BUTTONS[i], INPUT);
 
     Serial.begin(115200);
 
-    if(!SD.begin(CHIP_SELECT)){
-        Serial.println("Initialization failed!");
+    if(!SD.begin(CHIP_SELECT))
+    {
+        Serial.println(F("Initialization failed!"));
         while(1);
     }
 
-    Serial.println("Initialization successful!");
-
-    input.up = UP_BUTTON;
-    input.down = DWN_BUTTON;
-    input.backspace = BACKSPACE_BUTTON;
-    input.carriage_return = CR_BUTTON;
-    input.crawl_button = CRAWL_BUTTON;
-
-    usr.login = malloc(BUFFER_SIZE * sizeof(char));
-    usr.code = malloc(BUFFER_SIZE * sizeof(char));
+    Serial.println(F("Initialization successful!"));
 
     lcd.init();                   
     lcd.backlight();
 }
 
-void loop(){
-    if(digitalRead(DWN_BUTTON)){
+void loop()
+{
+
+    if(digitalRead(BUTTONS[3]))
+    {
         delay(200);
-        add_user();
-    }else if(digitalRead(UP_BUTTON)){
+        read_input(false);
+        Serial.println(input_buffer);
+    }
+    else if(digitalRead(BUTTONS[1]))
+    {
         delay(200);
-        login();
-    }else{
-        print_message_to_lcd(MSG_DEFAULT, 0);
+        read_input(true);
+        Serial.println(input_buffer);
     }
 }
 
-void print_message_to_lcd(char* text, int display_time){
+/*void print_message_to_lcd(char* text, int display_time){
     lcd.clear();
     lcd.setCursor(0,0);
     lcd.print(text);
     if(display_time > 0)
         delay(display_time);
-}
+}*/
 
-char* read_input(kbl* in, char is_num){
-    char *input_buffer_ptr = input_buffer;
-    char current_char, current_pos = 0, i = 0;
-    current_char = is_num ? '0' : 'a';
-    while(1){
-        lcd.setCursor(current_pos, 1);
-        if(digitalRead(in -> up)){
+void read_input(bool read_num)
+{
+
+    char c_start = read_num ? '0' : 'A',
+         c_rollback = read_num ? '9' : 'Z';
+    bool input_read = false;
+    char c_current = c_start,
+         i = 0;
+
+    do{
+        lcd.cursor();
+        lcd.setCursor(i,1);
+        lcd.write(c_current);
+
+        if(digitalRead(BUTTONS[1]))     // GO CHARACTER UP
+        {
             delay(200);
-            if(is_num)
-                current_char = current_char == '9' ? '0' : current_char + 1;
-            else
-                current_char = current_char == 'z' ? 'a' : current_char + 1;
-            lcd.cursor();
-            lcd.write(current_char);
-        }else if(digitalRead(in -> down)){
-            delay(200);
-            if(is_num)
-                current_char = current_char == '0' ? '9' : current_char - 1;
-            else
-                current_char = current_char == 'a' ? 'z' : current_char - 1;
-            lcd.cursor();
-            lcd.write(current_char);
-        }else if(digitalRead(in -> backspace)){
-            delay(200);
-            lcd.write(' ');
-            --i;
-            *(input_buffer_ptr + i) = ' ';
-            current_pos = current_pos > 0 ? current_pos - 1 : 0;
-            lcd.setCursor(current_pos, 1);
-            lcd.write(' ');
-        }else if(digitalRead(in -> carriage_return)){
-            delay(200);
-            *(input_buffer_ptr + i) = current_char;
-            current_char = is_num ? '0' : 'a';
-            current_pos = current_pos < (BUFFER_SIZE - 1) ? current_pos + 1 : current_pos;
-            i = i < (BUFFER_SIZE - 1) ? i + 1 : i;
-        }else if(digitalRead(in -> crawl_button)){
-            delay(200);
-            *(input_buffer_ptr + i) = '\0';
-            return input_buffer_ptr;
+            c_current = c_current < c_rollback ? c_current + 1 : c_start;
+            Serial.println("up");
         }
-    }
+        else if(digitalRead(BUTTONS[3]))    // GO CHARACTER DOWN
+        {
+            delay(200);
+            c_current = c_current > c_start ? c_current - 1 : c_rollback;
+            Serial.println("down");
+        }
+        else if(digitalRead(BUTTONS[0]))    // BACKSPACE
+        {
+            delay(200);
+            lcd.write(' ');
+
+            c_current = ' ';
+            if(i > 0) i--;
+        }
+        else if(digitalRead(BUTTONS[2]))    // ACCEPT CHARACTER
+        {
+            delay(200);
+
+            input_buffer[i] = c_current;
+            c_current = c_start;
+
+            if(i < BUFFER_SIZE-1) i++;
+
+            lcd.setCursor(i, 1);
+            Serial.println((byte)i);
+        }
+        else if(digitalRead(BUTTONS[4]))    // ACCEPT INPUT
+        {
+            delay(200);
+            
+            i++;
+            input_buffer[i] = '0';
+            input_read = true;
+            lcd.clear();
+        }
+    }while(!input_read);
+
 }
 
-void read_login_info(){
+/*void read_login_info(){
     print_message_to_lcd(MSG_LOGIN, 0);
     strcpy(usr.login, read_input(&input, 0));
     print_message_to_lcd(MSG_CODE, 0);
@@ -218,10 +207,10 @@ byte find_login(){
 byte check_login_info(){
     File f = SD.open(USERS_FILE, FILE_READ);
     while(load_record_to_buffer(f)){
-        load_field_to_buffer(0);                     /* load login field to buffer */ 
+        load_field_to_buffer(0);                  
         Serial.println(field_buffer);
         if(!strcmp(usr.login, field_buffer)){
-            load_field_to_buffer(1);                 /* load code field to buffer */
+            load_field_to_buffer(1);             
             Serial.println(field_buffer);
             if(!strcmp(usr.code, field_buffer)){
                 f.close();
@@ -327,4 +316,4 @@ void print_file(char* filename){
     }
     Serial.println("end");
     f.close();
-}
+}*/
