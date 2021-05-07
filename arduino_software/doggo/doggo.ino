@@ -3,49 +3,48 @@
 #include <SPI.h>
 #include <SD.h>
 
+const PROGMEM char MSG_LOGIN[] PROGMEM = "LOGIN:",
+                   MSG_CODE[] PROGMEM = "KOD:",
+                   MSG_ADD_USR[] PROGMEM = "NOWY PROFIL",
+                   MSG_USR_ADDED[] PROGMEM = "PROFIL DODANY",
+                   MSG_USR_EXISTS[] PROGMEM = "LOGIN ISNIEJE",
+                   MSG_WRONG_CRED[] PROGMEM = "ZLE DANE",
+                   MSG_RUN_STARTED[] PROGMEM = "MIŁEGO SPACERU!",
+                   MSG_RUN_ENDED[] PROGMEM = "DOBRA ROBOTA!",
+                   MSG_DEFAULT[] PROGMEM = "dogGo WITA!",
+                   MSG_ERR_0[] PROGMEM = "ERR:NO SD";
 
-            /* LCD PROMPTS */
-const char MSG_LOGIN[] PROGMEM =        "LOGIN:";
-const char MSG_CODE[] PROGMEM =         "KOD:";
-const char MSG_ADD_USR[] PROGMEM =      "NOWY PROFIL";
-const char MSG_USR_ADDED[] PROGMEM =    "PROFIL DODANY";
-const char MSG_USR_EXISTS[] PROGMEM =   "LOGIN ISNIEJE";
-const char MSG_WRONG_CRED[] PROGMEM =   "ZLE DANE";
-const char MSG_RUN_STARTED[] PROGMEM =  "MIŁEGO SPACERU!";
-const char MSG_RUN_ENDED[] PROGMEM =    "DOBRA ROBOTA!";
-const char MSG_DEFAULT[] PROGMEM =      "dogGo WITA!";
-const char MSG_ERR_0[] PROGMEM =        "ERR:NO SD" ;
+const char USERS_RECORDS_DIR PROGMEM = "/doggo/records/",
+           USERS_FILE PROGMEM = "/doggo/users.csv";
 
-            /* FILEPATHS */
-#define USERS_RECORDS_DIR "/doggo/records/"
-#define USERS_FILE "/doggo/users.csv"
-
-            /* DIGITAL PINS */
-const byte CHIP_SELECT =    10;
-const byte MAX_PATH_SIZE =  30;
-
+const uint8_t CHIP_SELECT = 10;
 
 /*          BUTTON LAYOUT
-
+            =============
+                BTN_1
+        
+        BTN_0           BTN_3    BTN_4
+                
                 BTN_2
-        BTN_1           BTN_3       BTN_5
-                BTN_4
 */
 
-const byte BUTTONS[5] = {7,5,4,6,3};
+const uint8_t BUTTONS[5] = {7,5,4,6,3};
 
-            /* OTHER CONSTANTS */
-const byte BUFFER_SIZE =        17;
-const byte MAX_RECORD_SIZE =    50;
+const uint8_t BUFFER_SIZE = 13,
+              RECORD_SIZE = 23,
+              USERNAME_LENGTH = 12,
+              CODE_LENGTH = 4,
+              ROW_NUMBER_LENGTH = 5;
 
-            /* BUFFERS */
-char input_buffer[BUFFER_SIZE];
+char input_buffer[BUFFER_SIZE],
+     account_buffer[RECORD_SIZE];
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
+
 void setup()
 {
-    for(byte i = 0; i < 5; ++i) pinMode(BUTTONS[i], INPUT);
+    for(uint8_t i = 0; i < 5; ++i) pinMode(BUTTONS[i], INPUT);
 
     Serial.begin(115200);
 
@@ -66,13 +65,13 @@ void loop()
     if(digitalRead(BUTTONS[3]))
     {
         delay(200);
-        read_input(false);
+        read_input(false, USERNAME_LENGTH);
         Serial.println(input_buffer);
     }
     else if(digitalRead(BUTTONS[1]))
     {
         delay(200);
-        read_input(true);
+        read_input(true, CODE_LENGTH);
         Serial.println(input_buffer);
     }
     else if(digitalRead(BUTTONS[4]))
@@ -83,19 +82,22 @@ void loop()
     }
 }
 
-void read_input(bool read_num)
-{
 
+void read_input(bool read_num,
+                uint8_t len)
+{
     char c_start = read_num ? '0' : 'A',
          c_rollback = read_num ? '9' : 'Z';
     bool input_read = false;
     char c_current = c_start,
          i = 0;
 
-    do{
+    do
+    {
         lcd.cursor();
         lcd.setCursor(i,1);
         lcd.write(c_current);
+
 
         if(digitalRead(BUTTONS[1]))         // GO CHARACTER UP
         {
@@ -126,7 +128,7 @@ void read_input(bool read_num)
             input_buffer[i] = c_current;
             c_current = c_start;
 
-            if(i < BUFFER_SIZE-1) i++;
+            if(i < len) i++;
 
             lcd.setCursor(i, 1);
         }
@@ -141,16 +143,27 @@ void read_input(bool read_num)
     }while(!input_read);
 }
 
-void DEBUG_dump_sd(File dir, byte tabs)
+bool search_field(uint8_t offset,
+                  uint8_t jump)
+{
+    File f = SD.open(USERS_FILE, FILE_READ);
+    long pos = offset;
+    uint8_t i = 0;
+
+}
+
+void DEBUG_dump_sd(File dir, 
+                   uint8_t tabs)
 {
     File f = dir.openNextFile();
     while(f)
     {
-        for (byte i = 0; i < tabs; i++) 
+        for (uint8_t i = 0; i < tabs; i++) 
             Serial.print('\t');
 
-        Serial.println(f.name());
-
+        Serial.print(f.name());
+        Serial.print(F(" : "));
+        Serial.println(f.size());
 
         if(f.isDirectory())
         {
