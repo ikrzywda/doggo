@@ -38,6 +38,8 @@ const uint8_t BUFFER_SIZE = 13,
 char input_buffer[BUFFER_SIZE],
      account_buffer[RECORD_SIZE];
 
+unsigned new_user_id;
+
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 
@@ -55,6 +57,8 @@ void setup()
 
     Serial.println(F("Initialization successful!"));
     Serial.println(USERBASE);
+
+    new_user_id = count_users();
 
     lcd.init();                   
     lcd.backlight();
@@ -150,12 +154,14 @@ void add_new_user()
         append_field(input_buffer, false);
         read_input(true, CODE_LENGTH);
         append_field(input_buffer, false);
-        new_user_number();
+        sprintf(input_buffer, "%d", new_user_id);
         append_field(input_buffer, true);
 
         File f = SD.open(USERBASE, FILE_WRITE);
         f.print(account_buffer);
         f.close();
+
+        new_user_id++;
     }
 
     account_buffer[0] = '\0';
@@ -224,7 +230,7 @@ bool compare_to_input(char buffer[])
     return true;
 }
 
-void new_user_number()
+unsigned count_users()
 {
     unsigned number = 0;
     char c;
@@ -235,8 +241,7 @@ void new_user_number()
         if(c == '\n') number++;
     }
     
-    sprintf(input_buffer, "%d\0", number);
-
+    return number;
 }
 
 void DEBUG_dump_sd(File dir, 
