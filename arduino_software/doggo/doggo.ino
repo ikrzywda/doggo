@@ -33,11 +33,7 @@ const uint8_t BUTTONS[5] = {7,5,4,6,3};
 const uint8_t BUFFER_SIZE = 13,
               RECORD_SIZE = 23,
               USERNAME_LENGTH = 12,
-              CODE_LENGTH = 4,
-              ROW_NUMBER_LENGTH = 5,
-              USERNAME_FIELD_OFFSET = 0,
-              CODE_FIELD_OFFSET = 13,
-              ROW_NUMBER_FIELD_OFFSET = 18;
+              CODE_LENGTH = 4;
 
 char input_buffer[BUFFER_SIZE],
      account_buffer[RECORD_SIZE];
@@ -101,7 +97,6 @@ void read_input(bool read_num,
         lcd.setCursor(i,1);
         lcd.write(c_current);
 
-
         if(digitalRead(BUTTONS[1]))         // GO CHARACTER UP
         {
             delay(200);
@@ -152,9 +147,11 @@ void add_new_user()
 
     if(search_field(0) == false)
     {
-        append_field(input_buffer, USERNAME_LENGTH, false);
+        append_field(input_buffer, false);
         read_input(true, CODE_LENGTH);
-        append_field(input_buffer, CODE_LENGTH, true);
+        append_field(input_buffer, false);
+        new_user_number();
+        append_field(input_buffer, true);
 
         File f = SD.open(USERBASE, FILE_WRITE);
         f.print(account_buffer);
@@ -165,7 +162,6 @@ void add_new_user()
 }
 
 void append_field(char field[],
-                  uint8_t width,
                   bool last_field)
 {
     uint8_t i = 0, 
@@ -173,10 +169,9 @@ void append_field(char field[],
     
     for(; account_buffer[i] != '\0'; ++i);
 
-    for(; j < width; ++j, ++i)
+    for(char c; (c = field[j]) != '\0'; ++j, ++i)
     {
-        if(field[j] == '\0') break;
-        account_buffer[i] = field[j];
+        account_buffer[i] = c;
     }
 
     account_buffer[i++] = (last_field) ?
@@ -227,6 +222,21 @@ bool compare_to_input(char buffer[])
     }
 
     return true;
+}
+
+void new_user_number()
+{
+    unsigned number = 0;
+    char c;
+    File f = SD.open(USERBASE, FILE_READ);
+
+    while((c = f.read()) != EOF)
+    {
+        if(c == '\n') number++;
+    }
+    
+    sprintf(input_buffer, "%d\0", number);
+
 }
 
 void DEBUG_dump_sd(File dir, 
