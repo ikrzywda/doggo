@@ -74,12 +74,8 @@ void loop()
     else if(digitalRead(BUTTONS[1]))
     {
         delay(200);
-        Serial.println(F("USERNAMES:"));
-        search_field(USERNAME_FIELD_OFFSET);
-        Serial.println(F("CODES:"));
-        search_field(CODE_FIELD_OFFSET);
-        Serial.println(F("ROW_NUMBER_LENGTH:"));
-        search_field(ROW_NUMBER_FIELD_OFFSET);
+        read_input(true, CODE_LENGTH);
+        search_field(1);
     }
     else if(digitalRead(BUTTONS[4]))
     {
@@ -153,18 +149,17 @@ void read_input(bool read_num,
 void add_new_user()
 {
     read_input(false, USERNAME_LENGTH);
-    append_field(input_buffer, USERNAME_LENGTH, false);
 
-    read_input(true, CODE_LENGTH);
-    append_field(input_buffer, CODE_LENGTH, false);
-    append_field("10\0", ROW_NUMBER_LENGTH, true);
+    if(search_field(0) == false)
+    {
+        append_field(input_buffer, USERNAME_LENGTH, false);
+        read_input(true, CODE_LENGTH);
+        append_field(input_buffer, CODE_LENGTH, true);
 
-    Serial.print(account_buffer);
-
-    File f = SD.open(USERBASE, FILE_WRITE);
-
-    f.print(account_buffer);
-    f.close();
+        File f = SD.open(USERBASE, FILE_WRITE);
+        f.print(account_buffer);
+        f.close();
+    }
 
     account_buffer[0] = '\0';
 }
@@ -175,16 +170,13 @@ void append_field(char field[],
 {
     uint8_t i = 0, 
             j = 0;
-    bool field_copied = false;
     
     for(; account_buffer[i] != '\0'; ++i);
 
     for(; j < width; ++j, ++i)
     {
-        if(field[j] == '\0') field_copied = true;
-
-        account_buffer[i] = (!field_copied) ? 
-                              field[j] : '-';
+        if(field[j] == '\0') break;
+        account_buffer[i] = field[j];
     }
 
     account_buffer[i++] = (last_field) ?
@@ -192,34 +184,49 @@ void append_field(char field[],
     account_buffer[i] = '\0';
 }
 
-bool search_field(uint8_t offset)
+bool search_field(uint8_t col)
 {
     File f = SD.open(USERBASE, FILE_READ);
-    long pos = offset;
-    char field_buffer[13],
+    char buffer[BUFFER_SIZE],
          c;
-    uint8_t i = 0;
-    
-    while(f.seek(pos))
+    uint8_t i = 0,
+            col_current = col;
+
+    while((c = f.read()) != EOF)
     {
-        while((c = f.read()) != '-'
-              && c != '\n'
-              && c != ',')
+        switch(c)
         {
-            Serial.print(c);
-            field_buffer[i] = c;
-            ++i;
+            case ',': col_current--;
+                      break;
+            
+            case '\n': buffer[i] = '\0'; 
+                       if(compare_to_input(buffer)) return true;
+                       col_current = col;
+                       i = 0;
+                       break;
+
+            default: if(col_current == 0) buffer[i++] = c;
+                     break;
         }
-
-        field_buffer[i] = '\0';
-        Serial.println(field_buffer);
-        Serial.println(i);
-        Serial.println(pos);
-
-        i = 0;
-        pos += RECORD_SIZE;
     }
+
     f.close();
+    return false;
+}
+
+bool compare_to_input(char buffer[])
+{
+    uint8_t i = 0;
+    char c, d;
+
+    while((c = buffer[i]) != '\0'
+          && (d = input_buffer[i]) != '\0')
+    {
+        if(c != d) return false;
+        ++i;
+    }
+
+    return true;
 }
 
 void DEBUG_dump_sd(File dir, 
