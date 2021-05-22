@@ -15,7 +15,7 @@ const char MSG_LOGIN[] PROGMEM = "LOGIN:",
            MSG_ERR_0[] PROGMEM = "ERR:NO SD";
 
 const char WALKS_DIR[] PROGMEM = "/doggo/records/";
-const char USERBASE[] = "/doggo/userbase.csv";
+const char USERBASE[] = "usrs.csv";
 
 const uint8_t CHIP_SELECT = 10;
 
@@ -30,21 +30,18 @@ const uint8_t CHIP_SELECT = 10;
 
 const uint8_t BUTTONS[5] = {7,5,4,6,3};
 
-const uint8_t BUFFER_SIZE = 13,
-              RECORD_SIZE = 23,
-              USERNAME_LENGTH = 12,
-              CODE_LENGTH = 4;
+const size_t SIZE_BUFFER_USERNAME = 13,
+             SIZE_BUFFER_PIN = 5,
+             SIZE_BUFFER_RECORD = 23;
 
-char input_buffer[BUFFER_SIZE],
-     account_buffer[RECORD_SIZE];
-
-unsigned new_user_id;
+unsigned new_user_id = 0;
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 
 void setup()
 {
+
     for(uint8_t i = 0; i < 5; ++i) pinMode(BUTTONS[i], INPUT);
 
     Serial.begin(115200);
@@ -56,7 +53,6 @@ void setup()
     }
 
     Serial.println(F("Initialization successful!"));
-    Serial.println(USERBASE);
 
     new_user_id = count_users();
 
@@ -69,25 +65,54 @@ void loop()
     if(digitalRead(BUTTONS[3]))
     {
         delay(200);
-        add_new_user();
+        new_user_add();
     }
     else if(digitalRead(BUTTONS[1]))
     {
         delay(200);
-        read_input(true, CODE_LENGTH);
-        search_field(1);
+        
+        test_get_record();
     }
     else if(digitalRead(BUTTONS[4]))
     {
         delay(200);
+
+        File f = SD.open("/");
         DEBUG_dump_sd(SD.open("/"), 0);
+        f.close();
+
         Serial.print("\ndone\n");
     }
 }
 
+void test_get_record()
+{
+    char record_buffer[SIZE_BUFFER_RECORD],
+         saught_field[SIZE_BUFFER_USERNAME];
 
-void read_input(bool read_num,
-                uint8_t len)
+    read_input(saught_field, SIZE_BUFFER_USERNAME, false);
+
+    File f = SD.open(USERBASE, FILE_READ);
+
+    while(get_record(f, record_buffer, SIZE_BUFFER_RECORD))
+    {
+        if(find_field(saught_field, record_buffer))
+        {
+            Serial.print(F("Field found!\n Record: "));
+            Serial.println(record_buffer);
+            Serial.print(F("Saught field: "));
+            Serial.println(saught_field);
+            
+            break;
+        }
+    }
+
+    f.close();
+}
+
+void read_input(char buffer_input[],
+                size_t len,
+                bool read_num)
 {
     char c_start = read_num ? '0' : 'A',
          c_rollback = read_num ? '9' : 'Z',
@@ -127,10 +152,10 @@ void read_input(bool read_num,
         {
             delay(200);
 
-            input_buffer[i] = c_current;
+            *(buffer_input + i) = c_current;
             c_current = c_start;
 
-            if(i < len) i++;
+            if(i < len) ++i;
 
             lcd.setCursor(i, 1);
         }
@@ -138,99 +163,95 @@ void read_input(bool read_num,
         {
             delay(200);
             
-            input_buffer[i] = '\0';
+            *(buffer_input + i) = '\0';
             input_read = true;
             lcd.clear();
         }
-    }while(!input_read);
+    } while(!input_read);
 }
 
-void add_new_user()
+void new_user_add()
 {
-    read_input(false, USERNAME_LENGTH);
+    char buffer_username[SIZE_BUFFER_USERNAME],
+         buffer_pin_code[SIZE_BUFFER_PIN],
+         buffer_record[SIZE_BUFFER_RECORD];
 
-    if(search_field(0) == false)
-    {
-        append_field(input_buffer, false);
-        read_input(true, CODE_LENGTH);
-        append_field(input_buffer, false);
-        sprintf(input_buffer, "%d", new_user_id);
-        append_field(input_buffer, true);
+    read_input(buffer_username, SIZE_BUFFER_USERNAME, false);
 
-        File f = SD.open(USERBASE, FILE_WRITE);
-        f.print(account_buffer);
-        f.close();
-
-        new_user_id++;
-    }
-
-    account_buffer[0] = '\0';
-}
-
-void append_field(char field[],
-                  bool last_field)
-{
-    uint8_t i = 0, 
-            j = 0;
+    Serial.println("record_buffer:");
+    Serial.print(buffer_record);
+    read_input(buffer_pin_code, SIZE_BUFFER_PIN, true);
     
-    for(; account_buffer[i] != '\0'; ++i);
+    Serial.println(buffer_username);
+    Serial.println(buffer_pin_code);
 
-    for(char c; (c = field[j]) != '\0'; ++j, ++i)
-    {
-        account_buffer[i] = c;
-    }
+    sprintf(buffer_record, "%d,%s,%s\n\0", 
+            new_user_id, buffer_pin_code, buffer_username);
 
-    account_buffer[i++] = (last_field) ?
-                        '\n' : ',';
-    account_buffer[i] = '\0';
+    append_record(USERBASE, buffer_record);
+    ++new_user_id;
+    Serial.print(buffer_record);
 }
 
-bool search_field(uint8_t col)
+void append_record(char filename[],
+                   char buffer_record[])
 {
-    File f = SD.open(USERBASE, FILE_READ);
-    char buffer[BUFFER_SIZE],
-         c;
-    uint8_t i = 0,
-            col_current = col;
+    File f = SD.open(filename, FILE_WRITE);
+    f.print(buffer_record);
+    f.close();
+}
 
-    while((c = f.read()) != EOF)
+inline bool get_record(File f,
+                       char record_buffer[],
+                       size_t record_size)
+{
+    int8_t c;
+    uint8_t i = 0; 
+
+    for(c = f.read(); 
+        c != '\n'; 
+        c = f.read(), i = (i < record_size - 2) ? i + 1 : i)
     {
-        switch(c)
+        if(c == EOF)
         {
-            case ',': col_current--;
-                      break;
-            
-            case '\n': buffer[i] = '\0'; 
-                       if(compare_to_input(buffer)) return true;
-                       col_current = col;
-                       i = 0;
-                       break;
-
-            default: if(col_current == 0) buffer[i++] = c;
-                     break;
+            record_buffer[i] = '\n';
+            record_buffer[i] = '\0';
+            return false;
         }
+        record_buffer[i] = c;
     }
 
-    f.close();
+    record_buffer[i] = '\n';
+    record_buffer[i+1] = '\0';
+    return true;
+} 
+
+inline bool find_field(char field[],
+                       char record[])
+{
+    char temp_buffer[SIZE_BUFFER_USERNAME];
+    uint8_t i = 0, 
+            j = 0; 
+    
+    for(char c = record[i]; 
+        c != '\0' && j < SIZE_BUFFER_USERNAME;
+        c = record[i], ++i)
+    {
+        if(c == ',' || c == '\n')
+        {
+            temp_buffer[j] = '\0';
+
+            if(!strcmp(temp_buffer, field)) { return true; }
+            j = 0;
+        }
+        else { temp_buffer[j++] = c; }
+    }
+    
     return false;
 }
 
-bool compare_to_input(char buffer[])
-{
-    uint8_t i = 0;
-    char c, d;
 
-    while((c = buffer[i]) != '\0'
-          && (d = input_buffer[i]) != '\0')
-    {
-        if(c != d) return false;
-        ++i;
-    }
-
-    return true;
-}
-
-unsigned count_users()
+inline unsigned count_users()
 {
     unsigned number = 0;
     char c;
@@ -250,12 +271,12 @@ void DEBUG_dump_sd(File dir,
     File f = dir.openNextFile();
     while(f)
     {
-        for (uint8_t i = 0; i < tabs; i++) 
-            Serial.print('\t');
+        for (uint8_t i = 0; i < tabs; i++) { Serial.print('\t'); }
 
         Serial.print(f.name());
         Serial.print(F(" : "));
-        Serial.println(f.size());
+        Serial.print(f.size());
+        Serial.print(F("\n\r"));
 
         if(f.isDirectory())
         {
