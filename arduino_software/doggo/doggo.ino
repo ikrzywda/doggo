@@ -10,7 +10,7 @@ const char MSG_USERNAME_EXISTS[] = "NAZWA ISTNIEJE\0",
            MSG_END_WALK[] = "DZIEKUJEMY!\0";
 
 const char WALKS_DIR[] = "/doggo/records/";
-const char USERBASE[] = "usrs.csv";
+const char USERBASE[] = "usrs_v2.csv";
 
 const uint8_t CHIP_SELECT = 10;
 
@@ -25,9 +25,8 @@ const uint8_t CHIP_SELECT = 10;
 
 const uint8_t BUTTONS[5] = {7,5,4,6,3};
 
-const size_t SIZE_USERNAME = 13,
-             SIZE_PIN = 5,
-             SIZE_USER_NUMBER = 5,
+const size_t SIZE_INPUT_STR = 13,
+             SIZE_INPUT_NUM = 5,
              SIZE_RECORD = 23;
 
 unsigned new_user_id = 0;
@@ -83,11 +82,11 @@ void loop()
 
 void add_new_user()
 {
-    char username[SIZE_USERNAME],
-         pin_code[SIZE_PIN],
+    char username[SIZE_INPUT_STR],
+         pin_code[SIZE_INPUT_NUM],
          record[SIZE_RECORD];
     
-    read_input(username, SIZE_USERNAME, false);
+    read_input(username, SIZE_INPUT_STR, false);
 
     if(get_record_by_field(USERBASE, username, 
                            record, SIZE_RECORD))
@@ -96,9 +95,9 @@ void add_new_user()
         return;
     }
 
-    read_input(pin_code, SIZE_PIN, true);
+    read_input(pin_code, SIZE_INPUT_NUM, true);
     
-    sprintf(record, "%d,%s,%s\n\0", 
+    sprintf(record, "#%d,%s,%s\n\0", 
             new_user_id, pin_code, username);
 
     append_record(USERBASE, record);
@@ -108,24 +107,27 @@ void add_new_user()
 
 void log_in(bool start)
 {
-    char user_number[SIZE_USER_NUMBER],
-         pin_code[SIZE_PIN],
+    char input[SIZE_INPUT_NUM],
+         user_id[SIZE_INPUT_NUM],
          record[SIZE_RECORD];
    
-    read_input(user_number, SIZE_USER_NUMBER, true);
+    read_input(input, SIZE_INPUT_NUM, true);
 
-    if(get_record_by_field(USERBASE, user_number, 
+    sprintf(user_id, "#%s", input);
+
+    if(!get_record_by_field(USERBASE, user_id, 
                            record, SIZE_RECORD))
     {
         lcd_prompt(MSG_NO_SIGNED_USER, "\0", 500);
-        Serial.println(record);
+        return;
     }
 
-    read_input(pin_code, SIZE_PIN, true);
+    read_input(input, SIZE_INPUT_NUM, true);
 
-    if(!find_field(pin_code, record))
+    if(!find_field(input, record))
     {
         lcd_prompt(MSG_WRONG_CODE, "\0", 500);
+        return;
     }
     
     lcd_prompt((start) ? MSG_START_WALK : MSG_END_WALK, NULL, 500);
@@ -198,7 +200,7 @@ bool get_record_by_field(char filepath[],
                          size_t record_size)
 {
     File f = SD.open(filepath, FILE_READ);
-
+    
     while(get_record(f, record, SIZE_RECORD))
     {
         if(find_field(field, record))
@@ -238,15 +240,15 @@ inline bool get_record(File f,
 } 
 
 bool find_field(char field[],
-                       char record[])
+                char record[])
 {
-    char temp_buffer[SIZE_USERNAME];
+    char temp_buffer[SIZE_INPUT_STR];
     uint8_t i = 0, 
             j = 0; 
     
     for(char c = record[i]; 
-        c != '\0' && j < SIZE_USERNAME;
-        c = record[i], ++i)
+        c != '\0' && j < SIZE_INPUT_STR;
+        ++i, c = record[i])
     {
         if(c == ',' || c == '\n')
         {
