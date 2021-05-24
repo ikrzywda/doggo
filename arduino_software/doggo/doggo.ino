@@ -11,8 +11,11 @@ const char MSG_USERNAME_EXISTS[] = "NAZWA ISTNIEJE\0",
            MSG_START_WALK[] = "MILEGO SPACERU!\0",
            MSG_END_WALK[] = "DZIEKUJEMY!\0";
 
-const char WALKS_DIR[] = "/doggo/records/";
-const char USERBASE[] = "usrs_v2.csv";
+const size_t SIZE_INPUT_STR = 13,
+             SIZE_INPUT_NUM = 5,
+             SIZE_USER_ID = 6,
+             SIZE_RECORD = 23,
+             SIZE_FILENAME = 13;
 
 const uint8_t CHIP_SELECT = 10;
 
@@ -27,14 +30,13 @@ const uint8_t CHIP_SELECT = 10;
 
 const uint8_t BUTTONS[5] = {7,5,4,6,3};
 
-const size_t SIZE_INPUT_STR = 13,
-             SIZE_INPUT_NUM = 5,
-             SIZE_USER_ID = 6,
-             SIZE_RECORD = 23;
+const char USERBASE[] = "usrs_v2.csv";
+char LOG_FILE[SIZE_FILENAME];
 
 unsigned new_user_id = 0;
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
+Rtc_Pcf8563 rtc;
 
 
 void setup()
@@ -52,10 +54,12 @@ void setup()
 
     Serial.println(F("Initialization successful!"));
 
-    new_user_id = count_users();
-
     lcd.init();                   
     lcd.backlight();
+
+    new_user_id = count_users();
+    get_log_filename(&rtc, LOG_FILE);
+
 }
 
 void loop()
@@ -81,7 +85,6 @@ void loop()
         Serial.print("\ndone\n");
     }
 }
-
 
 void add_new_user()
 {
@@ -137,7 +140,9 @@ void log_in(bool start)
         lcd_prompt(MSG_WRONG_CODE, "\0", 500);
         return;
     }
-    
+   
+    append_record(LOG_FILE, record);
+
     lcd_prompt((start) ? MSG_START_WALK : MSG_END_WALK, NULL, 500);
 }
 
@@ -273,7 +278,7 @@ bool find_field(char field[],
 
 
 inline void append_record(char filepath[],
-                   char buffer_record[])
+                          char buffer_record[])
 {
     File f = SD.open(filepath, FILE_WRITE);
     f.print(buffer_record);
@@ -296,8 +301,8 @@ unsigned count_users()
 }
 
 void lcd_prompt(char row_upper[], 
-                       char row_lower[], 
-                       unsigned time)
+                char row_lower[], 
+                unsigned time)
 {
     lcd.setCursor(0,0);
     lcd.print(row_upper);
@@ -308,6 +313,19 @@ void lcd_prompt(char row_upper[],
     delay(time);
     lcd.clear();
 }
+
+void get_log_filename(Rtc_Pcf8563 *rtc,
+                      char filename[13])
+{
+    uint8_t day = rtc->getDay(),
+            month = rtc->getMonth(),
+            hour = rtc->getHour(),
+            minute = rtc->getMinute();
+
+    sprintf(filename, "%02d%02d%02d%02d.csv\0", 
+            day, month, hour, minute);
+}
+
 
 void DEBUG_dump_sd(File dir, 
                    uint8_t tabs)
