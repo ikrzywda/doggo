@@ -1,9 +1,11 @@
 #include <Wire.h>
+#include <Rtc_Pcf8563.h>
 #include <LiquidCrystal_I2C.h>
 #include <SPI.h>
 #include <SD.h>
 
 const char MSG_USERNAME_EXISTS[] = "NAZWA ISTNIEJE\0",
+           MSG_YOUR_NUMBER[] = "TWOJ NUMER TO\n",
            MSG_NO_SIGNED_USER[] = "BRAK KONTA\0",
            MSG_WRONG_CODE[] = "ZLY KOD!\0",
            MSG_START_WALK[] = "MILEGO SPACERU!\0",
@@ -27,6 +29,7 @@ const uint8_t BUTTONS[5] = {7,5,4,6,3};
 
 const size_t SIZE_INPUT_STR = 13,
              SIZE_INPUT_NUM = 5,
+             SIZE_USER_ID = 6,
              SIZE_RECORD = 23;
 
 unsigned new_user_id = 0;
@@ -84,6 +87,7 @@ void add_new_user()
 {
     char username[SIZE_INPUT_STR],
          pin_code[SIZE_INPUT_NUM],
+         user_id[SIZE_INPUT_NUM],
          record[SIZE_RECORD];
     
     read_input(username, SIZE_INPUT_STR, false);
@@ -96,12 +100,16 @@ void add_new_user()
     }
 
     read_input(pin_code, SIZE_INPUT_NUM, true);
-    
-    sprintf(record, "#%d,%s,%s\n\0", 
-            new_user_id, pin_code, username);
+  
+    sprintf(user_id, "#%d\0", new_user_id);
+
+    sprintf(record, "%s,%s,%s\n\0", 
+            user_id, pin_code, username);
 
     append_record(USERBASE, record);
     ++new_user_id;
+
+    lcd_prompt(MSG_YOUR_NUMBER, user_id, 1000);
 }
 
 
@@ -287,7 +295,7 @@ unsigned count_users()
     return number;
 }
 
-inline void lcd_prompt(char row_upper[], 
+void lcd_prompt(char row_upper[], 
                        char row_lower[], 
                        unsigned time)
 {
