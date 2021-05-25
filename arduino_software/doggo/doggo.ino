@@ -4,18 +4,16 @@
 #include <SPI.h>
 #include <SD.h>
 
+#include "include/csv.h"
+#include "include/debug.h"
+#include "include/rtc.h"
+
 const char MSG_USERNAME_EXISTS[] = "NAZWA ISTNIEJE\0",
            MSG_YOUR_NUMBER[] = "TWOJ NUMER TO\n",
            MSG_NO_SIGNED_USER[] = "BRAK KONTA\0",
            MSG_WRONG_CODE[] = "ZLY KOD!\0",
            MSG_START_WALK[] = "MILEGO SPACERU!\0",
            MSG_END_WALK[] = "DZIEKUJEMY!\0";
-
-const size_t SIZE_INPUT_STR = 13,
-             SIZE_INPUT_NUM = 5,
-             SIZE_USER_ID = 6,
-             SIZE_RECORD = 23,
-             SIZE_FILENAME = 13;
 
 const uint8_t CHIP_SELECT = 10;
 
@@ -59,7 +57,16 @@ void setup()
 
     new_user_id = count_users();
     get_log_filename(&rtc, LOG_FILE);
+    test();
+}
 
+void test()
+{
+    char timestamp[SIZE_TIMESTAMP];
+
+    get_timestamp(&rtc, timestamp);
+
+    Serial.println(timestamp);
 }
 
 void loop()
@@ -207,85 +214,6 @@ void read_input(char buffer_input[],
     } while(!input_read);
 }
 
-bool get_record_by_field(char filepath[], 
-                         char field[],
-                         char record[],
-                         size_t record_size)
-{
-    File f = SD.open(filepath, FILE_READ);
-    
-    while(get_record(f, record, SIZE_RECORD))
-    {
-        if(find_field(field, record))
-        {
-            f.close();
-            return true;
-        }
-    }   
-    
-    f.close();
-    return false;
-}
-
-inline bool get_record(File f,
-                       char record_buffer[],
-                       size_t record_size)
-{
-    int8_t c;
-    uint8_t i = 0; 
-
-    for(c = f.read(); 
-        c != '\n'; 
-        c = f.read(), i = (i < record_size - 2) ? i + 1 : i)
-    {
-        if(c == EOF)
-        {
-            record_buffer[i] = '\n';
-            record_buffer[i] = '\0';
-            return false;
-        }
-        record_buffer[i] = c;
-    }
-
-    record_buffer[i] = '\n';
-    record_buffer[i+1] = '\0';
-    return true;
-} 
-
-bool find_field(char field[],
-                char record[])
-{
-    char temp_buffer[SIZE_INPUT_STR];
-    uint8_t i = 0, 
-            j = 0; 
-    
-    for(char c = record[i]; 
-        c != '\0' && j < SIZE_INPUT_STR;
-        ++i, c = record[i])
-    {
-        if(c == ',' || c == '\n')
-        {
-            temp_buffer[j] = '\0';
-
-            if(!strcmp(temp_buffer, field)) { return true; }
-            j = 0;
-        }
-        else { temp_buffer[j++] = c; }
-    }
-    
-    return false;
-}
-
-
-inline void append_record(char filepath[],
-                          char buffer_record[])
-{
-    File f = SD.open(filepath, FILE_WRITE);
-    f.print(buffer_record);
-    f.close();
-}
-
-
 unsigned count_users()
 {
     unsigned number = 0;
@@ -314,42 +242,3 @@ void lcd_prompt(char row_upper[],
     lcd.clear();
 }
 
-void get_log_filename(Rtc_Pcf8563 *rtc,
-                      char filename[13])
-{
-    uint8_t day = rtc->getDay(),
-            month = rtc->getMonth(),
-            hour = rtc->getHour(),
-            minute = rtc->getMinute();
-
-    sprintf(filename, "%02d%02d%02d%02d.csv\0", 
-            day, month, hour, minute);
-}
-
-
-void DEBUG_dump_sd(File dir, 
-                   uint8_t tabs)
-{
-    File f = dir.openNextFile();
-    while(f)
-    {
-        for (uint8_t i = 0; i < tabs; i++) { Serial.print('\t'); }
-
-        Serial.print(f.name());
-        Serial.print(F(" : "));
-        Serial.println(f.size());
-
-        if(f.isDirectory())
-        {
-            DEBUG_dump_sd(f, tabs+1);
-        }
-        else
-        {
-            while(f.available())
-                Serial.print((char)f.read());
-        }
-
-        f = dir.openNextFile();
-    }
-    f.close();
-}
