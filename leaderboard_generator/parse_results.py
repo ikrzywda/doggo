@@ -52,12 +52,5 @@ def dummy_doggo_database(output_dir):
             w.writerows(dummy_runs())
 
     
-
-def get_directory():
-    root = tk.Tk()
-    root.withdraw()
-    return filedialog.askdirectory()
-
-
 if __name__ == '__main__':
     dummy_doggo_database('tests')
