@@ -9,7 +9,7 @@
 #include "include/rtc.h"
 
 const char MSG_USERNAME_EXISTS[] = "NAZWA ISTNIEJE\0",
-           MSG_YOUR_NUMBER[] = "TWOJ NUMER TO\n",
+           MSG_YOUR_NUMBER[] = "TWOJ NUMER TO\n\0",
            MSG_NO_SIGNED_USER[] = "BRAK KONTA\0",
            MSG_WRONG_CODE[] = "ZLY KOD!\0",
            MSG_START_WALK[] = "MILEGO SPACERU!\0",
@@ -21,14 +21,14 @@ const uint8_t CHIP_SELECT = 10;
 //            =============
 //                BTN_1
 //        
-//        BTN_0           BTN_3    BTN_4
+//        BTN_0           BTN_2    BTN_4
 //                
-//                BTN_2
+//                BTN_3
 //
 
 const uint8_t BUTTONS[5] = {7,5,4,6,3};
 
-const char USERBASE[] = "usrs_v2.csv";
+const char USERBASE[] = "usrs_v2.csv\0";
 char LOG_FILE[SIZE_FILENAME];
 
 unsigned new_user_id = 0;
@@ -57,6 +57,7 @@ void setup()
 
     new_user_id = count_users();
     get_log_filename(&rtc, LOG_FILE);
+    Serial.println(LOG_FILE);
     test();
 }
 
@@ -80,6 +81,11 @@ void loop()
     {
         delay(200);
         log_in(true);
+    }
+    else if(digitalRead(BUTTONS[2]))
+    {
+        delay(200);
+        log_in(false);
     }
     else if(digitalRead(BUTTONS[4]))
     {
@@ -122,11 +128,11 @@ void add_new_user()
     lcd_prompt(MSG_YOUR_NUMBER, user_id, 1000);
 }
 
-
 void log_in(bool start)
 {
     char input[SIZE_INPUT_NUM],
          user_id[SIZE_INPUT_NUM],
+         timestamp[SIZE_TIMESTAMP],
          record[SIZE_RECORD];
    
     read_input(input, SIZE_INPUT_NUM, true);
@@ -147,8 +153,11 @@ void log_in(bool start)
         lcd_prompt(MSG_WRONG_CODE, "\0", 500);
         return;
     }
-   
+
+    get_timestamp(&rtc, timestamp);
+    sprintf(record, "%s,%s,%d\n\0", user_id, timestamp, (start) ? 1 : 0);
     append_record(LOG_FILE, record);
+    Serial.print(record);
 
     lcd_prompt((start) ? MSG_START_WALK : MSG_END_WALK, NULL, 500);
 }

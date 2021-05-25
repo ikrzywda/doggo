@@ -79,8 +79,8 @@ bool get_record_by_field(char filepath[],
     return false;
 }
 
-inline void append_record(char filepath[],
-                          char buffer_record[])
+void append_record(char filepath[],
+                   char buffer_record[])
 {
     File f = SD.open(filepath, FILE_WRITE);
     f.print(buffer_record);

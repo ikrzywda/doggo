@@ -16,7 +16,7 @@ void get_log_filename(Rtc_Pcf8563 *rtc,
             month = rtc->getMonth(),
             year = rtc->getYear();
 
-    sprintf(filename, "%02d/%02d/%02d.csv\0", 
+    sprintf(filename, "%02d%02d%02d.csv\0", 
             day, month, year);
 }
 
