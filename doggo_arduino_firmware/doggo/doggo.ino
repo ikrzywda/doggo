@@ -57,17 +57,6 @@ void setup()
 
     new_user_id = count_users();
     get_log_filename(&rtc, LOG_FILE);
-    Serial.println(LOG_FILE);
-    test();
-}
-
-void test()
-{
-    char timestamp[SIZE_TIMESTAMP];
-
-    get_timestamp(&rtc, timestamp);
-
-    Serial.println(timestamp);
 }
 
 void loop()
@@ -157,7 +146,6 @@ void log_in(bool start)
     get_timestamp(&rtc, timestamp);
     sprintf(record, "%s,%s,%d\n\0", user_id, timestamp, (start) ? 1 : 0);
     append_record(LOG_FILE, record);
-    Serial.print(record);
 
     lcd_prompt((start) ? MSG_START_WALK : MSG_END_WALK, NULL, 500);
 }
