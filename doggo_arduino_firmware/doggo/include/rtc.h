@@ -8,15 +8,6 @@
 const size_t SIZE_FILENAME = 13,
              SIZE_TIMESTAMP = 6;
 
-typedef struct Time_setting {
-    uint8_t second, 
-            minute,
-            hour, 
-            day,
-            month;
-    uint16_t year;
-};
-
 void get_log_filename(Rtc_Pcf8563 *rtc,
                       char filename[SIZE_FILENAME])
 {
@@ -35,6 +26,20 @@ void get_timestamp(Rtc_Pcf8563 *rtc,
             minute = rtc->getMinute();
 
     sprintf(timestamp, "%02d:%02d\0", hour, minute);
+}
+
+void update_time(Rtc_Pcf8563 *rtc)
+{
+    // buf: hour, min, sec, day, mon, year 
+    uint8_t buf[6];
+    Serial.readBytes(buf, 6);
+
+    rtc->setTime(buf[0], buf[1], buf[2]);
+    // day, weekday(not used), mon, century (not used), year
+    rtc->setDate(buf[3], 1, buf[4], false, buf[5]);
+
+    Serial.println(rtc->formatTime());
+    Serial.println(rtc->formatDate());
 }
 
 #endif 

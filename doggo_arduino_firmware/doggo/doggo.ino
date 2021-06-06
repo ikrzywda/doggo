@@ -15,6 +15,9 @@ const char MSG_USERNAME_EXISTS[] = "NAZWA ISTNIEJE\0",
            MSG_START_WALK[] = "MILEGO SPACERU!\0",
            MSG_END_WALK[] = "DZIEKUJEMY!\0";
 
+const uint8_t UPDATE_TIME = 't',
+              DUMP_SD = 'd';
+
 const uint8_t CHIP_SELECT = 10;
 
 //            BUTTON LAYOUT
@@ -50,6 +53,7 @@ void setup()
     }
 
     Serial.println(F("Initialization successful!"));
+    Serial.println(rtc.formatTime());
 
     lcd.init();                   
     lcd.backlight();
@@ -84,6 +88,10 @@ void loop()
         f.close();
 
         Serial.print("\ndone\n");
+    }
+    else if(Serial.available() > 0)
+    {
+        exec_cmd(Serial.read());
     }
 }
 
@@ -238,3 +246,14 @@ void lcd_prompt(char row_upper[],
     lcd.clear();
 }
 
+void exec_cmd(uint8_t cmd)
+{
+    switch(cmd)
+    {
+        case UPDATE_TIME:
+            Serial.println(F("time"));
+            update_time(&rtc);
+            break;
+        default: break;
+    }
+}

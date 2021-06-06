@@ -8,6 +8,33 @@ from sys import platform
 from time import localtime, sleep
 import serial
 
+def cli(): 
+    port = init_serial()
+    UPDATE_TIME = 'update-time'
+    DUMP_SD_TO_FILES = 'dump-sd'
+    while True:
+        port.write(b't')
+        port.write(localtime().tm_hour.to_bytes(1,'big'))
+        port.write(localtime().tm_min.to_bytes(1,'big'))
+        port.write(localtime().tm_sec.to_bytes(1,'big'))
+        port.write(localtime().tm_mday.to_bytes(1,'big'))
+        port.write(localtime().tm_mon.to_bytes(1,'big'))
+        port.write((localtime().tm_year % 2000).to_bytes(1,'big'))
+        print(port.readline())
+        sleep(1)
+
+def update_time(port):
+    port.write(b't')
+    port.write(localtime().tm_hour)
+    port.write(localtime().tm_min)
+    port.write(localtime().tm_sec)
+    port.write(localtime().tm_mday)
+    port.write(localtime().tm_mon)
+    port.write(localtime().tm_year % 2000)
+
+def dump_sd(port):
+    pass
+
 def init_serial():
     '''Initializes communication with the module at 115200 baud-rate'''
     port_name = ''
@@ -31,13 +58,7 @@ def update_time(ser_port):
 
 
 
-def run_connection():
-    '''main function for interfacing with the system'''
-    port = init_serial()
-    port.write(b'd')
-    while True:
-        print(port.readline())
-        sleep(1)
+
 
 if __name__ == '__main__':
-    run_connection()
+    cli()
