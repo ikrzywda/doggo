@@ -7,7 +7,15 @@
 
 const size_t SIZE_FILENAME = 13,
              SIZE_TIMESTAMP = 6;
-             
+
+typedef struct Time_setting {
+    uint8_t second, 
+            minute,
+            hour, 
+            day,
+            month;
+    uint16_t year;
+};
 
 void get_log_filename(Rtc_Pcf8563 *rtc,
                       char filename[SIZE_FILENAME])

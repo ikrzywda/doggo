@@ -39,7 +39,6 @@ Rtc_Pcf8563 rtc;
 
 void setup()
 {
-
     for(uint8_t i = 0; i < 5; ++i) { pinMode(BUTTONS[i], INPUT); }
 
     Serial.begin(115200);

@@ -22,28 +22,20 @@ def init_serial():
 def update_time(ser_port):
     '''sends time data to update module's RTC
         (hour, minute, second, day, month, year'''
-    ser_port.write(b'h')
     ser_port.write(bytes(localtime().tm_hour))
-    ser_port.write(b'm')
     ser_port.write(bytes(localtime().tm_min))
-    ser_port.write(b's')
     ser_port.write(bytes(localtime().tm_sec))
-    ser_port.write(b'd')
     ser_port.write(bytes(localtime().tm_mday))
-    ser_port.write(b'M')
     ser_port.write(bytes(localtime().tm_mon))
-    ser_port.write(b'y')
+    ser_port.write(bytes(localtime().tm_year % 2000))
 
-    year = bytearray(localtime().tm_year.to_bytes(2, 'big'))
-    ser_port.write(year[0])
-    ser_port.write(year[1])
 
 
 def run_connection():
     '''main function for interfacing with the system'''
     port = init_serial()
+    port.write(b'd')
     while True:
-        update_time(port)
         print(port.readline())
         sleep(1)
 

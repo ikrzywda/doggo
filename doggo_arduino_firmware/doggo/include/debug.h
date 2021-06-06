@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <SD.h>
 #include <SPI.h>
+#include <Rtc_Pcf8563.h>
 
 void DEBUG_dump_sd(File dir, 
                    uint8_t tabs)
