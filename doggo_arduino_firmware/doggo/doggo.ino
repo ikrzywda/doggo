@@ -93,6 +93,8 @@ void loop()
     {
         exec_cmd(Serial.read());
     }
+
+    idle();
 }
 
 void add_new_user()
@@ -102,6 +104,8 @@ void add_new_user()
          user_id[SIZE_INPUT_NUM],
          record[SIZE_RECORD];
     
+    lcd.clear();
+
     read_input(username, SIZE_INPUT_STR, false);
 
     if(get_record_by_field(USERBASE, username, 
@@ -130,7 +134,9 @@ void log_in(bool start)
          user_id[SIZE_INPUT_NUM],
          timestamp[SIZE_TIMESTAMP],
          record[SIZE_RECORD];
-   
+  
+    lcd.clear();
+    
     read_input(input, SIZE_INPUT_NUM, true);
 
     sprintf(user_id, "#%s", input);
@@ -167,7 +173,7 @@ void read_input(char buffer_input[],
          c_current = c_start;
     bool input_read = false;
     uint8_t i = 0;
-
+    
     do
     {
         lcd.cursor();
@@ -256,4 +262,13 @@ void exec_cmd(uint8_t cmd)
             break;
         default: break;
     }
+}
+
+void idle()
+{
+    lcd.setCursor(0,0);
+    lcd.print(rtc.formatTime());
+
+    lcd.setCursor(0,1);
+    lcd.print(rtc.formatDate());
 }
