@@ -63,10 +63,9 @@ def recover_file_structure():
     f.close()
     new_file = open('misc.txt', 'w')
     for r in rows:
-        if re.match(r'.*\.CSV', r, re.I):
-            print(r)
+        if filename := re.match(r'.*\.CSV', r, re.I):
             new_file.close()
-            new_file = open(r, 'w')
+            new_file = open(filename.group(), 'w')
         else:
             new_file.writelines(r)
 
