@@ -9,11 +9,19 @@
 #include "include/rtc.h"
 
 const char MSG_USERNAME_EXISTS[] = "NAZWA ISTNIEJE\0",
-           MSG_YOUR_NUMBER[] = "TWOJ NUMER TO\n\0",
+           MSG_YOUR_NUMBER_IS[] = "NUMER KONTA TO:\0",
+           MSG_INPUT_USER_NUMBER[] = "NUMER KONTA:\0",
+           MSG_INPUT_PIN[] = "PIN:\0",
+           MSG_INPUT_USERNAME[] = "PSEUDONIM:\0",
            MSG_NO_SIGNED_USER[] = "BRAK KONTA\0",
            MSG_WRONG_CODE[] = "ZLY KOD!\0",
-           MSG_START_WALK[] = "MILEGO SPACERU!\0",
-           MSG_END_WALK[] = "DZIEKUJEMY!\0";
+           MSG_ADDING_USER_0[] = "ZAKLADANIE\0",
+           MSG_ADDING_USER_1[] = "NOWEGO_KONTA\0",
+           MSG_LOGGING_IN[] = "LOGOWANIE\0",
+           MSG_STARTING_WALK_0[] = "CZAS DAC PSIAKOM\0",
+           MSG_STARTING_WALK_1[] = "SZCZESCIE!\0",
+           MSG_ENDING_WALK_0[] = "DZIEKUJEMY ZA\0",
+           MSG_ENDING_WALK_1[] = "TWOJ CZAS!\0";
 
 const uint8_t UPDATE_TIME = 't',
               DUMP_SD = 'd';
@@ -105,8 +113,8 @@ void add_new_user()
          user_id[SIZE_INPUT_NUM],
          record[SIZE_RECORD];
     
-    lcd.clear();
-
+    lcd_prompt(MSG_ADDING_USER_0, MSG_ADDING_USER_1, 1000); 
+    lcd_display(MSG_INPUT_USERNAME, "");
     read_input(username, SIZE_INPUT_STR, false);
 
     if(get_record_by_field(USERBASE, username, 
@@ -116,6 +124,7 @@ void add_new_user()
         return;
     }
 
+    lcd_display(MSG_INPUT_PIN, "");
     read_input(pin_code, SIZE_INPUT_NUM, true);
   
     sprintf(user_id, "#%d\0", new_user_id);
@@ -126,7 +135,7 @@ void add_new_user()
     append_record(USERBASE, record);
     ++new_user_id;
 
-    lcd_prompt(MSG_YOUR_NUMBER, user_id, 1000);
+    lcd_prompt(MSG_YOUR_NUMBER_IS, user_id, 10000);
 }
 
 void log_in(bool start)
@@ -135,9 +144,9 @@ void log_in(bool start)
          user_id[SIZE_INPUT_NUM],
          timestamp[SIZE_TIMESTAMP],
          record[SIZE_RECORD];
-  
-    lcd.clear();
-    
+ 
+    lcd_prompt(MSG_LOGGING_IN, "", 1000);
+    lcd_display(MSG_INPUT_USER_NUMBER, "");
     read_input(input, SIZE_INPUT_NUM, true);
 
     sprintf(user_id, "#%s", input);
@@ -149,6 +158,7 @@ void log_in(bool start)
         return;
     }
 
+    lcd_display(MSG_INPUT_PIN, "");
     read_input(input, SIZE_INPUT_NUM, true);
 
     if(!find_field(input, record))
@@ -161,7 +171,13 @@ void log_in(bool start)
     sprintf(record, "%s,%s,%d\n\0", user_id, timestamp, (start) ? 1 : 0);
     append_record(LOG_FILE, record);
 
-    lcd_prompt((start) ? MSG_START_WALK : MSG_END_WALK, NULL, 500);
+    if(start)
+    {
+        lcd_prompt(MSG_STARTING_WALK_0, MSG_STARTING_WALK_1, 1000);
+    }else
+    {
+        lcd_prompt(MSG_ENDING_WALK_0, MSG_ENDING_WALK_1, 1000);
+    }
 }
 
 
