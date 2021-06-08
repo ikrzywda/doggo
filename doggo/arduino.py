@@ -5,9 +5,9 @@
     - ability to dump SD file data without taking out the SD'''
 
 from sys import platform
-from time import localtime, sleep
-import serial
+from time import localtime
 import re
+import serial
 
 BLOB = 'temp.txt'   # file where all data from SD is stored
 UPDATE_TIME = b't'
@@ -27,12 +27,12 @@ def init_serial():
 def dump_sd(port):
     '''Dumps data from Arduino's SD to one file for further parsing'''
     port.write(b'd')
-    f = open('temp.txt', 'w')
+    blob = open('temp.txt', 'w')
     port = init_serial()
     while (c := port.read().decode('ASCII')) != '|':
         print(c, end='')
-        f.write(c)
-    f.close()
+        blob.write(c)
+    blob.close()
 
 def update_time(port):
     '''Sends data about time and date to the Arduino'''
@@ -44,10 +44,10 @@ def update_time(port):
     port.write(localtime().tm_mon.to_bytes(1, 'big'))
     port.write((localtime().tm_year % 2000).to_bytes(1, 'big'))
 
-def cli(): 
+def cli():
     '''Command line interface for interacting with Arduino'''
     port = init_serial()
-    while (cmd := input('>>>' )) != 'q':
+    while (cmd := input('>>> ')) != 'q':
         if cmd == 't':
             update_time(port)
         elif cmd == 'd':

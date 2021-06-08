@@ -5,7 +5,7 @@
 #include <Wire.h>
 #include <Rtc_Pcf8563.h>
 
-const size_t SIZE_FILENAME = 13,
+const size_t SIZE_FILENAME = 19,
              SIZE_TIMESTAMP = 6;
 
 void get_log_filename(Rtc_Pcf8563 *rtc,
@@ -15,8 +15,8 @@ void get_log_filename(Rtc_Pcf8563 *rtc,
             month = rtc->getMonth(),
             year = rtc->getYear();
 
-    sprintf(filename, "%02d%02d%02d.csv\0", 
-            day, month, year);
+    sprintf(filename, "%s%02d%02d%02d.csv\0", 
+            "doggo/", day, month, year);
 }
 
 void get_timestamp(Rtc_Pcf8563 *rtc, 

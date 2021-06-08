@@ -89,7 +89,7 @@ void append_record(char filepath[],
 
 inline void dump_file(File f)
 {
-    Serial.print(f.name());
+    Serial.println(f.name());
     while(f.available() > 0)
     {
         Serial.write(f.read());

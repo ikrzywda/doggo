@@ -31,7 +31,8 @@ const uint8_t CHIP_SELECT = 10;
 
 const uint8_t BUTTONS[5] = {7,5,4,6,3};
 
-const char USERBASE[] = "usrs_v2.csv\0";
+const char ROOT[] = "/doggo\0";
+const char USERBASE[] = "doggo/usrs_v2.csv\0";
 char LOG_FILE[SIZE_FILENAME];
 
 unsigned new_user_id = 0;
@@ -242,6 +243,7 @@ void lcd_prompt(char row_upper[],
                 char row_lower[], 
                 unsigned time)
 {
+    lcd.clear();
     lcd.setCursor(0,0);
     lcd.print(row_upper);
 
@@ -250,6 +252,16 @@ void lcd_prompt(char row_upper[],
 
     delay(time);
     lcd.clear();
+}
+
+void lcd_display(char row_upper[], 
+                char row_lower[])
+{
+    lcd.setCursor(0,0);
+    lcd.print(row_upper);
+
+    lcd.setCursor(0,1);
+    lcd.print(row_lower);
 }
 
 void exec_cmd(uint8_t cmd)
@@ -269,12 +281,8 @@ void exec_cmd(uint8_t cmd)
 
 void dump_contents()
 {
-    lcd.clear();
-    lcd.setCursor(0,0);
-    lcd.print("Dumping files...");
-
-    dump_through_serial(USERBASE);
-    dump_through_serial("runs");
+    lcd_display("Dumping files...", "");
+    dump_through_serial(ROOT);
     Serial.write('|');
     lcd_prompt("Done!", "", 1000);
 }
