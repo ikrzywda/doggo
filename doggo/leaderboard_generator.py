@@ -2,6 +2,8 @@
 
 import sys
 import csv
+import os
+from http.server import HTTPServer, CGIHTTPRequestHandler
 
 def results_to_html_list(results_file):
     html_list = '<ul>\r\n\t'
@@ -22,7 +24,15 @@ def insert_results_to_template(template_file, results, output):
                 else:
                     output_file.write(line)
 
+def run_server():
+    os.chdir('./leaderboards')
+    print('Serving at localhost/80')
+    localhost = HTTPServer(server_address=('', 80),
+            RequestHandlerClass=CGIHTTPRequestHandler)
+    localhost.serve_forever()
+
 
 if __name__ == '__main__':
-    results = results_to_html_list(sys.argv[1])
-    insert_results_to_template(sys.argv[2], results, 'inserted_values.html')
+    #results = results_to_html_list(sys.argv[1])
+    #insert_results_to_template(sys.argv[2], results, 'inserted_values.html')
+    run_server()
